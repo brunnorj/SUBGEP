@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- PREVENÇÃO DE CACHE (Garante que o GitHub Pages mostre a versão mais recente) -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
     <title>Planejamento de Infraestrutura e Implantação da SUBGEP</title>
     
     <!-- React & Babel -->
@@ -199,24 +205,17 @@
             const [loading, setLoading] = useState(true);
             const [saveStatus, setSaveStatus] = useState({ state: 'loading', message: 'A carregar dados...' });
             
-            // Variáveis de controlo para evitar conflitos (Race Conditions)
+            // Variáveis de controlo robustas
             const isSaving = useRef(false);
-            const lastLocalUpdate = useRef(0); // Regista o tempo da última alteração local
+            const lastLocalUpdate = useRef(0);
 
-            // Helper robusto para forçar a interpretação correta de arrays vindos da base de dados
+            // Parser seguro para dados do Supabase
             const parseSupabaseData = (val) => {
                 if (!val) return [];
                 let parsed = val;
-                
-                // Em casos raros, a base de dados pode guardar uma string dentro de uma string
                 while (typeof parsed === 'string') {
-                    try { 
-                        parsed = JSON.parse(parsed); 
-                    } catch (e) { 
-                        break; 
-                    }
+                    try { parsed = JSON.parse(parsed); } catch (e) { break; }
                 }
-                
                 if (Array.isArray(parsed)) return parsed;
                 return [];
             };
@@ -287,8 +286,7 @@
                 if (!isSupabaseConfigured || loading) return;
 
                 const fetchUpdates = async () => {
-                    // TRANCA DE SEGURANÇA: Se estamos a gravar OU se gravámos nos últimos 5 segundos, 
-                    // ignora a leitura da nuvem. Isto evita ler dados velhos antes do servidor os atualizar.
+                    // Impede que a leitura apague os dados que você acabou de clicar
                     if (isSaving.current || (Date.now() - lastLocalUpdate.current < 5000)) return;
 
                     try {
@@ -301,15 +299,19 @@
                         if (data && !error) {
                             setCompletedSteps(prev => {
                                 const newData = parseSupabaseData(data.completed_steps);
-                                if (prev.size !== newData.length) return new Set(newData);
-                                for (let item of prev) if (!newData.includes(item)) return new Set(newData);
-                                return prev;
+                                const prevArray = Array.from(prev);
+                                const hasDifference = newData.length !== prev.size || 
+                                                      newData.some(i => !prevArray.includes(i)) || 
+                                                      prevArray.some(i => !newData.includes(i));
+                                return hasDifference ? new Set(newData) : prev;
                             });
                             setOpenPhases(prev => {
                                 const newData = parseSupabaseData(data.open_phases);
-                                if (prev.size !== newData.length) return new Set(newData);
-                                for (let item of prev) if (!newData.includes(item)) return new Set(newData);
-                                return prev;
+                                const prevArray = Array.from(prev);
+                                const hasDifference = newData.length !== prev.size || 
+                                                      newData.some(i => !prevArray.includes(i)) || 
+                                                      prevArray.some(i => !newData.includes(i));
+                                return hasDifference ? new Set(newData) : prev;
                             });
                             setSaveStatus({ state: 'synced', message: 'Sincronizado' });
                         }
@@ -318,7 +320,7 @@
                     }
                 };
 
-                const intervalId = setInterval(fetchUpdates, 3000); // Verifica a cada 3s
+                const intervalId = setInterval(fetchUpdates, 3000);
                 return () => clearInterval(intervalId);
             }, [isSupabaseConfigured, loading]);
 
@@ -327,10 +329,9 @@
                 const stepsArray = Array.from(newSteps);
                 const phasesArray = Array.from(newPhases);
 
-                // Regista o tempo da alteração para bloquear a sobreposição de leitura por 5s
                 lastLocalUpdate.current = Date.now();
 
-                // Faz SEMPRE um backup local imediato para prevenir perdas se apertarem F5
+                // Backup local imediato
                 localStorage.setItem('glpi_completed_steps', JSON.stringify(stepsArray));
                 localStorage.setItem('glpi_open_phases', JSON.stringify(phasesArray));
 
@@ -376,25 +377,25 @@
 
             // Ações manuais
             const toggleStep = (stepId) => {
-                const newCompleted = new Set(completedSteps);
-                if (newCompleted.has(stepId)) {
-                    newCompleted.delete(stepId);
-                } else {
-                    newCompleted.add(stepId);
-                }
-                setCompletedSteps(newCompleted); // Atualiza UI instantaneamente
-                updateCloud(newCompleted, openPhases); // Envia as alterações
+                setCompletedSteps(prev => {
+                    const newCompleted = new Set(prev);
+                    if (newCompleted.has(stepId)) newCompleted.delete(stepId);
+                    else newCompleted.add(stepId);
+                    
+                    updateCloud(newCompleted, openPhases);
+                    return newCompleted;
+                });
             };
 
             const togglePhase = (phaseId) => {
-                const newOpen = new Set(openPhases);
-                if (newOpen.has(phaseId)) {
-                    newOpen.delete(phaseId);
-                } else {
-                    newOpen.add(phaseId);
-                }
-                setOpenPhases(newOpen);
-                updateCloud(completedSteps, newOpen);
+                setOpenPhases(prev => {
+                    const newOpen = new Set(prev);
+                    if (newOpen.has(phaseId)) newOpen.delete(phaseId);
+                    else newOpen.add(phaseId);
+                    
+                    updateCloud(completedSteps, newOpen);
+                    return newOpen;
+                });
             };
 
             // Status Badge Colors
@@ -451,8 +452,9 @@ NOTIFY pgrst, 'reload schema';`;
                                 <ServerIcon />
                                 <span className="text-tech-primary font-semibold tracking-wider text-sm uppercase">Planeamento</span>
                             </div>
-                            <h1 className="text-3xl md:text-4xl font-bold text-tech-textHighlight tracking-tight">
+                            <h1 className="text-3xl md:text-4xl font-bold text-tech-textHighlight tracking-tight flex flex-wrap items-center gap-3">
                                 Planeamento de Infraestrutura e Implantação da SUBGEP
+                                <span className="text-sm px-2 py-1 bg-tech-primary/20 text-tech-primary rounded-lg border border-tech-primary/30">v2.1</span>
                             </h1>
                             <div className={`mt-4 inline-flex items-center gap-2 px-3 py-1.5 border rounded-full text-xs font-medium shadow-sm transition-colors ${getStatusColor()}`}>
                                 {isSupabaseConfigured && saveStatus.state !== 'local' ? <CloudIcon className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-tech-success"></div>}
