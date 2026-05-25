@@ -169,6 +169,28 @@
         const ServerIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>;
         const CloudIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>;
 
+        // ==========================================
+        // SISTEMA SEGURO DE LOCAL STORAGE (MANDATÓRIO PARA OUTROS COMPUTADORES/IFRAMES)
+        // ==========================================
+        const safeStorage = {
+            getItem: (key, defaultValue = null) => {
+                try {
+                    const item = window.localStorage.getItem(key);
+                    return item !== null ? item : defaultValue;
+                } catch (e) {
+                    console.warn(`[Acessibilidade] LocalStorage bloqueado para leitura da chave: ${key}. Usando fallback.`, e);
+                    return defaultValue;
+                }
+            },
+            setItem: (key, value) => {
+                try {
+                    window.localStorage.setItem(key, value);
+                } catch (e) {
+                    console.warn(`[Acessibilidade] LocalStorage bloqueado para escrita da chave: ${key}. Mudanças salvas temporariamente em memória.`, e);
+                }
+            }
+        };
+
         const data = {
             phases: [
                 {
@@ -235,10 +257,10 @@
             const [loading, setLoading] = useState(true);
             const [saveStatus, setSaveStatus] = useState({ state: 'loading', message: 'A carregar dados...' });
             
-            // Estados de Acessibilidade / Readability
-            const [theme, setTheme] = useState(() => localStorage.getItem('subgep_theme') || 'dark');
-            const [fontSize, setFontSize] = useState(() => localStorage.getItem('subgep_font_size') || 'normal'); // 'normal' | 'large'
-            const [highContrast, setHighContrast] = useState(() => localStorage.getItem('subgep_contrast') === 'true');
+            // Estados de Acessibilidade / Readability usando safeStorage para evitar crashes em outros PCs
+            const [theme, setTheme] = useState(() => safeStorage.getItem('subgep_theme', 'dark'));
+            const [fontSize, setFontSize] = useState(() => safeStorage.getItem('subgep_font_size', 'normal')); // 'normal' | 'large'
+            const [highContrast, setHighContrast] = useState(() => safeStorage.getItem('subgep_contrast') === 'true');
 
             // Aplica o tema na tag HTML
             useEffect(() => {
@@ -248,13 +270,13 @@
                 } else {
                     rootElement.classList.remove('dark');
                 }
-                localStorage.setItem('subgep_theme', theme);
+                safeStorage.setItem('subgep_theme', theme);
             }, [theme]);
 
-            // Salva as configurações de tamanho de fonte e contraste
+            // Salva as configurações de tamanho de fonte e contraste com segurança
             useEffect(() => {
-                localStorage.setItem('subgep_font_size', fontSize);
-                localStorage.setItem('subgep_contrast', highContrast.toString());
+                safeStorage.setItem('subgep_font_size', fontSize);
+                safeStorage.setItem('subgep_contrast', highContrast.toString());
             }, [fontSize, highContrast]);
 
             // Helper para formatar o texto e as diretrizes com cores e destaques contrastantes
@@ -274,7 +296,7 @@
                     if (text.startsWith("Diretrizes de Execução:")) {
                         return (
                             <span>
-                                <strong className="text-sky-600 dark:text-sky-400 font-bold block sm:inline">Diretrizes de Execução: </strong>
+                                <strong className="text-sky-600 dark:text-sky-450 font-bold block sm:inline">Diretrizes de Execução: </strong>
                                 {text.replace("Diretrizes de Execução:", "").trim()}
                             </span>
                         );
@@ -347,8 +369,8 @@
             // 1. CARREGAMENTO INICIAL E LISTENER EM TEMPO REAL (FIREBASE)
             useEffect(() => {
                 const fallbackToLocal = () => {
-                    const savedSteps = localStorage.getItem('glpi_completed_steps');
-                    const savedPhases = localStorage.getItem('glpi_open_phases');
+                    const savedSteps = safeStorage.getItem('glpi_completed_steps');
+                    const savedPhases = safeStorage.getItem('glpi_open_phases');
                     if (savedSteps) setCompletedSteps(new Set(JSON.parse(savedSteps)));
                     if (savedPhases) setOpenPhases(new Set(JSON.parse(savedPhases)));
                 };
@@ -373,8 +395,8 @@
                                 setOpenPhases(new Set(dbData.open_phases || []));
                                 setSaveStatus({ state: 'synced', message: 'Sincronizado com a nuvem' });
                             } else {
-                                const savedSteps = localStorage.getItem('glpi_completed_steps');
-                                const savedPhases = localStorage.getItem('glpi_open_phases');
+                                const savedSteps = safeStorage.getItem('glpi_completed_steps');
+                                const savedPhases = safeStorage.getItem('glpi_open_phases');
                                 
                                 if (savedSteps && savedSteps !== "[]") {
                                     const parsedSteps = JSON.parse(savedSteps);
@@ -441,8 +463,8 @@
                 const phasesArray = Array.from(newPhases);
 
                 // Backup local imediato
-                localStorage.setItem('glpi_completed_steps', JSON.stringify(stepsArray));
-                localStorage.setItem('glpi_open_phases', JSON.stringify(phasesArray));
+                safeStorage.setItem('glpi_completed_steps', JSON.stringify(stepsArray));
+                safeStorage.setItem('glpi_open_phases', JSON.stringify(phasesArray));
 
                 if (!isFirebaseConfigured) {
                     setSaveStatus({ state: 'local', message: 'A guardar localmente (sem nuvem)' });
@@ -843,7 +865,7 @@
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        root.render((<App />));
     </script>
 </body>
 </html>
