@@ -116,7 +116,7 @@
         const { useState, useEffect } = React;
 
         // ==========================================
-        // CONFIGURAÇÃO DO FIREBASE (Já preenchida)
+        // CONFIGURAÇÃO DO FIREBASE
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyBM1VNaO5ElfdEDsVTtgOhTNorDCdIT2Tg",
@@ -127,7 +127,7 @@
             appId: "1:265894082408:web:934ba03c327ceb6f4288dd"
         };
         
-        // Verificação robusta (Não alterar)
+        // Verificação robusta
         const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.apiKey.length > 20);
         
         if (isFirebaseConfigured && !window.firebase.apps.length) {
@@ -170,7 +170,7 @@
                         { id: "3-1", name: "Email Institucional", desc: "Possibilidade 1: Renomear os e-mails do domínio Casa Civil para o domínio Planejamento (serviço a ser solicitado ao PRODERJ), criando um alias por período a ser combinado para redirecionamento dos e-mails do domínio Casa Civil para o domínio Planejamento. Possibilidade 2: Criar manualmente os e-mails individualmente no domínio Planejamento. OBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve solicitação ao PRODERJ." },
                         { id: "3-2", name: "Fileserver", desc: "Possibilidade 1: Migração dos documentos do Fileserver da Casa Civil diretamente ao Fileserver do Planejamento (verificar viabilidade junto à Casa Civil e ao PRODERJ). Possibilidade 2: Recebimento de cópia dos documentos da Casa Civil (HD externo) e inserção no Fileserver do Planejamento. OBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve verificação junto à Casa Civil e ao PRODERJ." },
                         { id: "3-3", name: "Impressoras", desc: "Possibilidade 1: Trazer de volta a impressora que está emprestada à Casa Civil disponibilizando à SUBGEP.Possibilidade 2: Remanejar uma das impressoras localizadas no 8º andar para a SUBGEP. OBS: A Possibilidade 2 é a opção mais interessante, no local existem 2 impressoras, basta compartilharmos a impressora que ficar com a área que terá sua impressora retirada." },
-                        { id: "3-4", name: "SEI-RJ", desc: "Possibilidade 1: Migração dos usuários do SEI da Casa Civil para o SEI do Planejamento com a migração dos processos (verificar viabilidade junto a SETD).Possibilidade 2: Após a criação dos logins de rede, enviar ao RH para o cadastramento no SEI do Planejamento e futura migração dos processos.OBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve verificação de viabilidade junto à SETD." },
+                        { id: "3-4", name: "SEI-RJ", desc: "Possibilidade 1: Migração dos usuários do SEI da Casa Civil para o SEI do Planejamento com a migração dos processes (verificar viabilidade junto a SETD).Possibilidade 2: Após a criação dos logins de rede, enviar ao RH para o cadastramento no SEI do Planejamento e futura migração dos processos.OBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve verificação de viabilidade junto à SETD." },
                         { id: "3-5", name: "Aplicações", desc: "Caso existam aplicações hospedadas em servidores locais, será feito um estudo para que passe para o PRODERJ nas VPS. Se as aplicações estiverem hospedadas no PRODERJ, será solicitada a implementação das regras necessárias para permitir o acesso a partir da infraestrutura da SEPLAG." },
                      ]
                 },
@@ -215,6 +215,22 @@
             const [loading, setLoading] = useState(true);
             const [saveStatus, setSaveStatus] = useState({ state: 'loading', message: 'A carregar dados...' });
             
+            // Helper para identificar erros de DB não criado
+            const isDbNotFoundError = (err) => {
+                if (!err) return false;
+                if (err.code === 'not-found') return true;
+                if (err.message && err.message.toLowerCase().includes('not-found')) return true;
+                if (err.message && err.message.toLowerCase().includes('does not exist')) return true;
+                return false;
+            };
+
+            const isRlsError = (err) => {
+                if (!err) return false;
+                if (err.code === 'permission-denied') return true;
+                if (err.message && err.message.toLowerCase().includes('permission denied')) return true;
+                return false;
+            };
+
             // 1. CARREGAMENTO INICIAL E LISTENER EM TEMPO REAL (FIREBASE)
             useEffect(() => {
                 const fallbackToLocal = () => {
@@ -237,7 +253,6 @@
                     try {
                         const docRef = db.collection('planejamento').doc('estado');
                         
-                        // onSnapshot é a magia do Firebase: cria um WebSocket e atualiza em tempo real!
                         unsubscribe = docRef.onSnapshot((doc) => {
                             if (doc.exists) {
                                 const dbData = doc.data();
@@ -245,16 +260,46 @@
                                 setOpenPhases(new Set(dbData.open_phases || []));
                                 setSaveStatus({ state: 'synced', message: 'Sincronizado' });
                             } else {
-                                fallbackToLocal();
-                                setSaveStatus({ state: 'synced', message: 'Pronto para nuvem' });
+                                // O FIREBASE ESTÁ VAZIO! 
+                                // Solução: Puxa o progresso que você tem no computador e FORÇA o upload imediato.
+                                const savedSteps = localStorage.getItem('glpi_completed_steps');
+                                const savedPhases = localStorage.getItem('glpi_open_phases');
+                                
+                                if (savedSteps && savedSteps !== "[]") {
+                                    const parsedSteps = JSON.parse(savedSteps);
+                                    const parsedPhases = savedPhases ? JSON.parse(savedPhases) : [1];
+                                    
+                                    setCompletedSteps(new Set(parsedSteps));
+                                    setOpenPhases(new Set(parsedPhases));
+                                    
+                                    setSaveStatus({ state: 'saving', message: 'A migrar para nuvem...' });
+                                    
+                                    // Semeia o Firebase com os seus dados locais
+                                    docRef.set({
+                                        completed_steps: parsedSteps,
+                                        open_phases: parsedPhases,
+                                        updated_at: window.firebase.firestore.FieldValue.serverTimestamp()
+                                    }, { merge: true }).then(() => {
+                                        setSaveStatus({ state: 'synced', message: 'Migração concluída!' });
+                                    }).catch((err) => {
+                                        console.error("Erro ao migrar dados iniciais:", err);
+                                        if (isDbNotFoundError(err)) {
+                                            setSaveStatus({ state: 'error_db', message: 'Banco de Dados não criado' });
+                                        } else {
+                                            setSaveStatus({ state: 'error', message: 'Falha na migração' });
+                                        }
+                                    });
+                                } else {
+                                    setSaveStatus({ state: 'synced', message: 'Pronto para nuvem' });
+                                }
                             }
                             setLoading(false);
                         }, (error) => {
                             console.error("Erro Firebase Snapshot:", error);
                             fallbackToLocal();
-                            if (error.code === 'permission-denied') {
+                            if (isRlsError(error)) {
                                 setSaveStatus({ state: 'error_rules', message: 'Bloqueio de Regras' });
-                            } else if (error.code === 'not-found') {
+                            } else if (isDbNotFoundError(error)) {
                                 setSaveStatus({ state: 'error_db', message: 'Banco de Dados não criado' });
                             } else {
                                 setSaveStatus({ state: 'error', message: 'Erro de ligação' });
@@ -265,7 +310,11 @@
                     } catch (error) {
                         console.error("Erro de inicialização do Firebase:", error);
                         fallbackToLocal();
-                        setSaveStatus({ state: 'error', message: 'Erro na inicialização' });
+                        if (isDbNotFoundError(error)) {
+                            setSaveStatus({ state: 'error_db', message: 'Banco de Dados não criado' });
+                        } else {
+                            setSaveStatus({ state: 'error', message: 'Erro na inicialização' });
+                        }
                         setLoading(false);
                     }
                 };
@@ -304,9 +353,9 @@
                     // O setSaveStatus final para "Sincronizado" acontece automaticamente no onSnapshot
                 } catch (error) {
                     console.error("Erro ao guardar no Firebase:", error);
-                    if (error.code === 'permission-denied') {
+                    if (isRlsError(error)) {
                         setSaveStatus({ state: 'error_rules', message: 'Bloqueio de Regras' });
-                    } else if (error.code === 'not-found') {
+                    } else if (isDbNotFoundError(error)) {
                         setSaveStatus({ state: 'error_db', message: 'Banco de Dados não criado' });
                     } else {
                         setSaveStatus({ state: 'error', message: 'Erro ao guardar (Local)' });
@@ -370,7 +419,7 @@
                             </div>
                             <h1 className="text-3xl md:text-4xl font-bold text-tech-textHighlight tracking-tight flex flex-wrap items-center gap-3">
                                 Planeamento de Infraestrutura e Implantação da SUBGEP
-                                <span className="text-sm px-2 py-1 bg-tech-primary/20 text-tech-primary rounded-lg border border-tech-primary/30">v3.1 Firebase</span>
+                                <span className="text-sm px-2 py-1 bg-tech-primary/20 text-tech-primary rounded-lg border border-tech-primary/30">v3.3 Firebase</span>
                             </h1>
                             <div className={`mt-4 inline-flex items-center gap-2 px-3 py-1.5 border rounded-full text-xs font-medium shadow-sm transition-colors ${getStatusColor()}`}>
                                 {isFirebaseConfigured && saveStatus.state !== 'local' ? <CloudIcon className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-tech-success"></div>}
@@ -526,7 +575,7 @@
                                             <div className="space-y-3 bg-red-900/20 p-4 rounded-lg border border-red-500/30">
                                                 <p className="text-red-400 font-semibold text-sm">Base de Dados Inexistente</p>
                                                 <p className="text-xs">
-                                                    As chaves estão corretas, mas precisa de criar a base de dados. Vá à consola do Firebase &gt; <strong>Firestore Database</strong> e clique em <strong>Create database</strong>.
+                                                    O seu projeto existe, mas a base de dados ainda não foi criada. Vá à consola do Firebase &gt; <strong>Firestore Database</strong> e clique no botão <strong>Create database</strong>.
                                                 </p>
                                             </div>
                                         ) : saveStatus.state === 'error_rules' ? (
