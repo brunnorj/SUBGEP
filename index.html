@@ -32,14 +32,14 @@
                     },
                     colors: {
                         tech: {
-                            bg: '#0f172a',
-                            card: '#1e293b',
+                            bg: '#090d16',
+                            card: '#131d31',
                             border: '#334155',
                             primary: '#0ea5e9',
                             primaryHover: '#0284c7',
                             success: '#10b981',
-                            text: '#cbd5e1',
-                            textHighlight: '#f8fafc'
+                            text: '#f1f5f9',
+                            textHighlight: '#ffffff'
                         }
                     }
                 }
@@ -47,15 +47,30 @@
         }
     </script>
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #cbd5e1; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        
+        /* Tema Escuro (Padrão) */
+        html.dark body { 
+            background-color: #090d16; 
+            color: #f1f5f9; 
+        }
+        
+        /* Tema Claro */
+        html:not(.dark) body { 
+            background-color: #f8fafc; 
+            color: #0f172a; 
+        }
         
         ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        html.dark ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        html:not(.dark) ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
         .tech-checkbox {
             appearance: none;
@@ -63,19 +78,22 @@
             margin: 0;
             font: inherit;
             color: currentColor;
-            width: 1.25em;
-            height: 1.25em;
-            border: 2px solid #334155;
+            width: 1.35em;
+            height: 1.35em;
+            border: 2px solid #64748b;
             border-radius: 0.25em;
             display: grid;
             place-content: center;
             transition: all 0.2s ease-in-out;
             cursor: pointer;
         }
+        html.dark .tech-checkbox {
+            border-color: #94a3b8;
+        }
         .tech-checkbox::before {
             content: "";
-            width: 0.65em;
-            height: 0.65em;
+            width: 0.7em;
+            height: 0.7em;
             transform: scale(0);
             transition: 120ms transform ease-in-out;
             box-shadow: inset 1em 1em white;
@@ -93,10 +111,16 @@
 
         .gradient-border {
             position: relative;
-            background: #1e293b;
             background-clip: padding-box;
             border: 2px solid transparent;
             border-radius: 0.75rem;
+            transition: background-color 0.2s ease;
+        }
+        html.dark .gradient-border {
+            background: #131d31;
+        }
+        html:not(.dark) .gradient-border {
+            background: #ffffff;
         }
         .gradient-border::before {
             content: '';
@@ -150,8 +174,8 @@
                 {
                     id: 1, title: "Fase 1 – Infraestrutura Física e Cabeamento", steps: [
                         { id: "1-1", name: "Cabeamento", desc: "Aguardando o local estabelecido para acomodar a SUBGEP." },
-                        { id: "1-2", name: "Cabeamento Vertical", desc: "Diretrizes de Execução: Será estabelecido um uplink (entrocamento Trunk) a partir do Switch Core até o andar de destino para tráfego de dados das estações. Adicionalmene, será lançado um link dedicado originado do nosso Switch Core PoE, destinado a alimentar a transportar o tráfego da Infraestrutura de Access Point (DMZ). " },
-                        { id: "1-3", name: "Rack de Telecom de Andar", desc: "Diretrizes de Execução: Será implantado um rack de distribuição intermediário no andar. Esta estrutura acomodará a terminação do (cabeamento vertical) e hospedará os switches de acesso provisionados para a operação da SUBGEP." },
+                        { id: "1-2", name: "Cabeamento Vertical", desc: "Diretrizes de Execução: Será estabelecido um uplink (entrocamento Trunk) a partir do Switch Core até o andar de destino para tráfego de dados das estações. Adicionalmente, será lançado um link dedicado originado do nosso Switch Core PoE, destinado a alimentar e transportar o tráfego da Infraestrutura de Access Point (DMZ)." },
+                        { id: "1-3", name: "Rack de Telecom de Andar", desc: "Diretrizes de Execução: Será implantado um rack de distribuição intermediário no andar. Esta estrutura acolodará a terminação do (cabeamento vertical) e hospedará os switches de acesso provisionados para a operação da SUBGEP." },
                         { id: "1-4", name: "Provisionamento de Infraestrutura WI-FI", desc: "Diretrizes de Execução: Envolve a configuração de Access Points (APs Cisco ou Intelbras). A gerência dos equipamentos seguirá o padrão de nomenclatura institucional predefinido: CONECTA [andar]-[lado]." }, 
                     ]
                 },
@@ -162,22 +186,22 @@
                         { id: "2-3", name: "Provisionamento de Ativos de Rede", desc: "Diretrizes de Execução: Baseado em informações identificamos aproximadamente 120 usuários na SUBGEP, será realizado a configuração de, no mínimo, 5 switches operando na camada de acesso (sendo ao menos equipamentos de 24 portas) para garantir a densidade de portas necessária e disponibilidade." },
                         { id: "2-4", name: "Políticas de Firewall e Controle de Acesso", desc: "Diretrizes de Execução: Com a matriz de usuários e o plano de endereçamento IP definidos, será feito o levantamento dos perfis de acesso externo (Proderj, Fazenda e internet em geral). Os IPs alocados servirão de base para a solicitação de liberação de portas, regras de firewall junto aos órgãos competentes." },
                         { id: "2-5", name: "Acesso Remoto Seguro (VPN)", desc: "Diretrizes de Execução: Realização de um levantamento junto aos líderes da SUBGEP para mapear o grupo de usuários que demandam acesso remoto. A lista validada será encaminhada ao PRODERJ para criação de novas VPN ou migração de acessos existentes para a infraestrutura da Seplag." },
-                        { id: "2-6", name: "Link's", desc: "Avaliação se o link for físico/local, será solicitado o seu remanejamento para o prédio da SEPLAG.." },
+                        { id: "2-6", name: "Link's", desc: "Avaliação se o link for físico/local, será solicitado o seu remanejamento para o prédio da SEPLAG." },
                     ]
                 },
                 {
                     id: 3, title: "Fase 3 – Serviços Corporativos", steps: [
-                        { id: "3-1", name: "Email Institucional", desc: "Possibilidade 1: Renomear os e-mails do domínio Casa Civil para o domínio Planejamento (serviço a ser solicitado ao PRODERJ), criando um alias por período a ser combinado para redirecionamento dos e-mails do domínio Casa Civil para o domínio Planejamento. Possibilidade 2: Criar manualmente os e-mails individualmente no domínio Planejamento. OBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve solicitação ao PRODERJ." },
-                        { id: "3-2", name: "Fileserver", desc: "Possibilidade 1: Migração dos documentos do Fileserver da Casa Civil diretamente ao Fileserver do Planejamento (verificar viabilidade junto à Casa Civil e ao PRODERJ). Possibilidade 2: Recebimento de cópia dos documentos da Casa Civil (HD externo) e inserção no Fileserver do Planejamento. OBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve verificação junto à Casa Civil e ao PRODERJ." },
-                        { id: "3-3", name: "Impressoras", desc: "Possibilidade 1: Trazer de volta a impressora que está emprestada à Casa Civil disponibilizando à SUBGEP. Possibilidade 2: Remanejar uma das impressoras localizadas no 8º andar para a SUBGEP. OBS: A Possibilidade 2 é a opção mais interessante, no local existem 2 impressoras, basta compartilharmos a impressora que ficar com a área que terá sua impressora retirada." },
-                        { id: "3-4", name: "SEI-RJ", desc: "Possibilidade 1: Migração dos usuários do SEI da Casa Civil para o SEI do Planejamento com a migração dos processes (verificar viabilidade junto a SETD).Possibilidade 2: Após a criação dos logins de rede, enviar ao RH para o cadastramento no SEI do Planejamento e futura migração dos processos.OBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve verificação de viabilidade junto à SETD." },
+                        { id: "3-1", name: "Email Institucional", desc: "Possibilidade 1: Renomear os e-mails do domínio Casa Civil para o domínio Planejamento (serviço a ser solicitado ao PRODERJ), criando um alias por período a ser combinado para redirecionamento dos e-mails do domínio Casa Civil para o domínio Planejamento.\nPossibilidade 2: Criar manualmente os e-mails individualmente no domínio Planejamento.\nOBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve solicitação ao PRODERJ." },
+                        { id: "3-2", name: "Fileserver", desc: "Possibilidade 1: Migração dos documentos do Fileserver da Casa Civil diretamente ao Fileserver do Planejamento (verificar viabilidade junto à Casa Civil e ao PRODERJ).\nPossibilidade 2: Recebimento de cópia dos documentos da Casa Civil (HD externo) e inserção no Fileserver do Planejamento.\nOBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve verificação junto à Casa Civil e ao PRODERJ." },
+                        { id: "3-3", name: "Impressoras", desc: "Possibilidade 1: Trazer de volta a impressora que está emprestada à Casa Civil disponibilizando à SUBGEP.\nPossibilidade 2: Remanejar uma das impressoras localizadas no 8º andar para a SUBGEP.\nOBS: A Possibilidade 2 é a opção mais interessante, no local existem 2 impressoras, basta compartilharmos a impressora que ficar com a área que terá sua impressora retirada." },
+                        { id: "3-4", name: "SEI-RJ", desc: "Possibilidade 1: Migração dos usuários do SEI da Casa Civil para o SEI do Planejamento com a migração dos processos (verificar viabilidade junto a SETD).\nPossibilidade 2: Após a criação dos logins de rede, enviar ao RH para o cadastramento no SEI do Planejamento e futura migração dos processos.\nOBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve verificação de viabilidade junto à SETD." },
                         { id: "3-5", name: "Aplicações", desc: "Caso existam aplicações hospedadas em servidores locais, será feito um estudo para que passe para o PRODERJ nas VPS. Se as aplicações estiverem hospedadas no PRODERJ, será solicitada a implementação das regras necessárias para permitir o acesso a partir da infraestrutura da SEPLAG." },
                      ]
                 },
                 {
                     id: 4, title: "Fase 4 – Governança e Gestão de TI", steps: [
                         { id: "4-1", name: "Gestão de Ativos de TI", desc: "Diretrizes de Execução: Em alinhamento com a gestão da SUBGEP, será realizado o levantamento do parque tecnológico (endpoints). Os dados coletados alimentarão o banco de dados do nosso sistema de ITSM (GLPI), garantindo o controle de inventário." },
-                        { id: "4-2", name: "Avaliação dos contratos dos links", desc: "Transferência de titularidade da Casa Civil para SEPLAG. Descentralização de Credito. Caso se trate de um circuito lógico, será solicitado ao PRODERJ o remanejamento das regras e configurações para o ambiente da SEPLAG. " },
+                        { id: "4-2", name: "Avaliação dos contratos dos links", desc: "Transferência de titularidade da Casa Civil para SEPLAG. Descentralização de Credito. Caso se trate de um circuito lógico, será solicitado ao PRODERJ o remanejamento das regras e configurações para o ambiente da SEPLAG." },
                         ]
                 },
                 {
@@ -190,13 +214,12 @@
                 },
                 {
                     id: 6, title: "Fase 6 – Planejamento e Aquisições", steps: [
-                        { id: "6-1", name: "Dimensionamento de Rede para Estações de Trabalho", desc: "Para cada Estação, será necessário: 1 ponto RJ45 Cat6A e 3 Pontos elétricos estabilizados. Caso necessário, 1 ponto de Telefonia" },
-                        { id: "6-2", name: "Cabeamento Horizontal", desc: "Necessário a compra de 500 unidades de RJ45 macho, Cabo UTP Cat6 ou Cat6A, quantidade estimada 8 a 10 caixas de 305 metros." },
-                        { id: "6-3", name: "Tomadas de Rede", desc: "Necessário a compra de 250 unidades de Keystone Jack Cat6A, Espelhos, Espelhos duplos (2pontos por posição) e caixa de Embutir ou Sobrepor." },
-                        { id: "6-4", name: "Rack", desc: "Necessário a compra de um Rack de Piso fechado 44U" },
-                                            ]
+                        { id: "6-1", name: "Dimensionamento de Rede para Estações de Trabalho", desc: "Para cada Estação, será necessário: 1 ponto RJ45 Cat6A e 3 Pontos elétricos estabilizados. Caso seja necessário 1 ponto de Telefonia." },
+                        { id: "6-2", name: "Cabeamento Horizontal", desc: "Necessário a compra de 500 unidades de RJ45 macho, Cabo UTP Cat6 ou Cat6A, quantidade estimada de 8 a 10 caixas de 305 metros." },
+                        { id: "6-3", name: "Tomadas de Rede", desc: "Necessário a compra de 250 unidades de Keystone Jack Cat6A, Espelhos, Espelhos duplos (2 pontos por posição) e caixa de Embutir ou Sobrepor." },
+                        { id: "6-4", name: "Rack", desc: "Necessário a compra de um Rack de Piso fechado 44U." },
+                    ]
                 },
-            
             ],
             results: [
                 "Padronização da infraestrutura de TI",
@@ -212,6 +235,99 @@
             const [loading, setLoading] = useState(true);
             const [saveStatus, setSaveStatus] = useState({ state: 'loading', message: 'A carregar dados...' });
             
+            // Estados de Acessibilidade / Readability
+            const [theme, setTheme] = useState(() => localStorage.getItem('subgep_theme') || 'dark');
+            const [fontSize, setFontSize] = useState(() => localStorage.getItem('subgep_font_size') || 'normal'); // 'normal' | 'large'
+            const [highContrast, setHighContrast] = useState(() => localStorage.getItem('subgep_contrast') === 'true');
+
+            // Aplica o tema na tag HTML
+            useEffect(() => {
+                const rootElement = window.document.documentElement;
+                if (theme === 'dark') {
+                    rootElement.classList.add('dark');
+                } else {
+                    rootElement.classList.remove('dark');
+                }
+                localStorage.setItem('subgep_theme', theme);
+            }, [theme]);
+
+            // Salva as configurações de tamanho de fonte e contraste
+            useEffect(() => {
+                localStorage.setItem('subgep_font_size', fontSize);
+                localStorage.setItem('subgep_contrast', highContrast.toString());
+            }, [fontSize, highContrast]);
+
+            // Helper para formatar o texto e as diretrizes com cores e destaques contrastantes
+            const formatDesc = (desc) => {
+                if (!desc) return null;
+                
+                let mainText = desc;
+                let obsText = "";
+                
+                if (desc.includes("OBS:")) {
+                    const parts = desc.split("OBS:");
+                    mainText = parts[0];
+                    obsText = "OBS:" + parts[1];
+                }
+
+                const renderHighlight = (text) => {
+                    if (text.startsWith("Diretrizes de Execução:")) {
+                        return (
+                            <span>
+                                <strong className="text-sky-600 dark:text-sky-400 font-bold block sm:inline">Diretrizes de Execução: </strong>
+                                {text.replace("Diretrizes de Execução:", "").trim()}
+                            </span>
+                        );
+                    }
+
+                    if (text.includes("Possibilidade 1:") || text.includes("Possibilidade 2:")) {
+                        const lines = text
+                            .replace(/Possibilidade 1:/g, "• Possibilidade 1:")
+                            .replace(/Possibilidade 2:/g, "\n• Possibilidade 2:")
+                            .split("\n");
+                        
+                        return (
+                            <span className="block space-y-2 mt-1">
+                                {lines.map((line, i) => {
+                                    if (line.trim().startsWith("• Possibilidade 1")) {
+                                        return (
+                                            <span key={i} className="block pl-3 border-l-4 border-sky-400 dark:border-sky-500 py-0.5 my-1.5 bg-sky-50 dark:bg-sky-950/40 rounded-r-md">
+                                                <strong className="text-sky-700 dark:text-sky-400 font-bold">Possibilidade 1:</strong> 
+                                                <span className="ml-1 text-slate-800 dark:text-slate-100">{line.replace("• Possibilidade 1:", "").trim()}</span>
+                                            </span>
+                                        );
+                                    }
+                                    if (line.trim().startsWith("• Possibilidade 2")) {
+                                        return (
+                                            <span key={i} className="block pl-3 border-l-4 border-indigo-400 dark:border-indigo-500 py-0.5 my-1.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-r-md">
+                                                <strong className="text-indigo-700 dark:text-indigo-400 font-bold">Possibilidade 2:</strong> 
+                                                <span className="ml-1 text-slate-800 dark:text-slate-100">{line.replace("• Possibilidade 2:", "").trim()}</span>
+                                            </span>
+                                        );
+                                    }
+                                    return <span key={i} className="block">{line}</span>;
+                                })}
+                            </span>
+                        );
+                    }
+                    return text;
+                };
+
+                return (
+                    <div className="space-y-3">
+                        <div className={`leading-relaxed ${highContrast ? 'font-medium' : 'font-normal'}`}>
+                            {renderHighlight(mainText)}
+                        </div>
+                        {obsText && (
+                            <div className="mt-2.5 p-3 rounded-lg border bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200 shadow-sm">
+                                <strong className="font-extrabold uppercase tracking-wide text-xs text-amber-800 dark:text-amber-400 block mb-1">Nota importante:</strong>
+                                <span className={fontSize === 'large' ? 'text-[15px]' : 'text-[13px]'}>{obsText.replace("OBS:", "").trim()}</span>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
             // Helper para identificar erros de DB não criado
             const isDbNotFoundError = (err) => {
                 if (!err) return false;
@@ -240,7 +356,7 @@
                 if (!isFirebaseConfigured) {
                     fallbackToLocal();
                     setLoading(false);
-                    setSaveStatus({ state: 'local', message: 'A guardar localmente' });
+                    setSaveStatus({ state: 'local', message: 'A guardar localmente (sem nuvem)' });
                     return;
                 }
 
@@ -255,10 +371,8 @@
                                 const dbData = doc.data();
                                 setCompletedSteps(new Set(dbData.completed_steps || []));
                                 setOpenPhases(new Set(dbData.open_phases || []));
-                                setSaveStatus({ state: 'synced', message: 'Sincronizado' });
+                                setSaveStatus({ state: 'synced', message: 'Sincronizado com a nuvem' });
                             } else {
-                                // O FIREBASE ESTÁ VAZIO! 
-                                // Solução: Puxa o progresso que você tem no computador e FORÇA o upload imediato.
                                 const savedSteps = localStorage.getItem('glpi_completed_steps');
                                 const savedPhases = localStorage.getItem('glpi_open_phases');
                                 
@@ -268,10 +382,8 @@
                                     
                                     setCompletedSteps(new Set(parsedSteps));
                                     setOpenPhases(new Set(parsedPhases));
-                                    
                                     setSaveStatus({ state: 'saving', message: 'A migrar para nuvem...' });
                                     
-                                    // Semeia o Firebase com os seus dados locais
                                     docRef.set({
                                         completed_steps: parsedSteps,
                                         open_phases: parsedPhases,
@@ -281,7 +393,7 @@
                                     }).catch((err) => {
                                         console.error("Erro ao migrar dados iniciais:", err);
                                         if (isDbNotFoundError(err)) {
-                                            setSaveStatus({ state: 'error_db', message: 'Banco de Dados não criado' });
+                                            setSaveStatus({ state: 'error_db', message: 'Base de Dados não criada' });
                                         } else {
                                             setSaveStatus({ state: 'error', message: 'Falha na migração' });
                                         }
@@ -295,9 +407,9 @@
                             console.error("Erro Firebase Snapshot:", error);
                             fallbackToLocal();
                             if (isRlsError(error)) {
-                                setSaveStatus({ state: 'error_rules', message: 'Bloqueio de Regras' });
+                                setSaveStatus({ state: 'error_rules', message: 'Bloqueio de Regras de Acesso' });
                             } else if (isDbNotFoundError(error)) {
-                                setSaveStatus({ state: 'error_db', message: 'Banco de Dados não criado' });
+                                setSaveStatus({ state: 'error_db', message: 'Base de Dados não criada' });
                             } else {
                                 setSaveStatus({ state: 'error', message: 'Erro de ligação' });
                             }
@@ -308,7 +420,7 @@
                         console.error("Erro de inicialização do Firebase:", error);
                         fallbackToLocal();
                         if (isDbNotFoundError(error)) {
-                            setSaveStatus({ state: 'error_db', message: 'Banco de Dados não criado' });
+                            setSaveStatus({ state: 'error_db', message: 'Base de Dados não criada' });
                         } else {
                             setSaveStatus({ state: 'error', message: 'Erro na inicialização' });
                         }
@@ -318,7 +430,6 @@
 
                 initFirebase();
                 
-                // Limpa o listener se o componente for desmontado
                 return () => {
                     if (unsubscribe) unsubscribe();
                 };
@@ -334,11 +445,11 @@
                 localStorage.setItem('glpi_open_phases', JSON.stringify(phasesArray));
 
                 if (!isFirebaseConfigured) {
-                    setSaveStatus({ state: 'local', message: 'A guardar localmente' });
+                    setSaveStatus({ state: 'local', message: 'A guardar localmente (sem nuvem)' });
                     return;
                 }
 
-                setSaveStatus({ state: 'saving', message: 'A guardar...' });
+                setSaveStatus({ state: 'saving', message: 'A sincronizar...' });
 
                 try {
                     const docRef = db.collection('planejamento').doc('estado');
@@ -347,15 +458,14 @@
                         open_phases: phasesArray,
                         updated_at: window.firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
-                    // O setSaveStatus final para "Sincronizado" acontece automaticamente no onSnapshot
                 } catch (error) {
                     console.error("Erro ao guardar no Firebase:", error);
                     if (isRlsError(error)) {
-                        setSaveStatus({ state: 'error_rules', message: 'Bloqueio de Regras' });
+                        setSaveStatus({ state: 'error_rules', message: 'Bloqueio de Regras de Acesso' });
                     } else if (isDbNotFoundError(error)) {
-                        setSaveStatus({ state: 'error_db', message: 'Banco de Dados não criado' });
+                        setSaveStatus({ state: 'error_db', message: 'Base de Dados não criada' });
                     } else {
-                        setSaveStatus({ state: 'error', message: 'Erro ao guardar (Local)' });
+                        setSaveStatus({ state: 'error', message: 'Erro ao guardar (Backup Local)' });
                     }
                 }
             };
@@ -364,12 +474,14 @@
             const progressPercentage = Math.round((completedSteps.size / totalSteps) * 100);
 
             // Ações manuais
-            const toggleStep = (stepId) => {
+            const toggleStep = (stepId, event) => {
+                // Impede disparos indesejados caso clique em links ou inputs específicos
+                if (event.target.tagName === 'A' || event.target.tagName === 'TEXTAREA') return;
+                
                 const newCompleted = new Set(completedSteps);
                 if (newCompleted.has(stepId)) newCompleted.delete(stepId);
                 else newCompleted.add(stepId);
                 
-                // O estado visual atualiza mais tarde via onSnapshot, mas para ser instantâneo na UI:
                 setCompletedSteps(newCompleted);
                 updateCloud(newCompleted, openPhases);
             };
@@ -383,102 +495,180 @@
                 updateCloud(completedSteps, newOpen);
             };
 
-            // Status Badge Colors
-            const getStatusColor = () => {
+            // Status Badge Colors adaptativos e de alto contraste
+            const getStatusStyles = () => {
                 switch(saveStatus.state) {
-                    case 'synced': return 'bg-tech-success text-white border-tech-success';
-                    case 'saving': return 'bg-tech-primary text-white border-tech-primary animate-pulse';
+                    case 'synced': 
+                        return 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40';
+                    case 'saving': 
+                        return 'bg-sky-50 text-sky-800 border-sky-300 dark:bg-sky-950/40 dark:text-sky-350 dark:border-sky-800/40 animate-pulse';
                     case 'error_rules': 
                     case 'error_db': 
-                    case 'error': return 'bg-red-500 text-white border-red-500';
-                    case 'local': return 'bg-tech-card text-slate-300 border-tech-border';
-                    default: return 'bg-tech-card text-slate-300 border-tech-border';
+                    case 'error': 
+                        return 'bg-rose-50 text-rose-800 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40';
+                    case 'local': 
+                    default: 
+                        return 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700';
                 }
             };
 
             if (loading) {
                 return (
-                    <div className="min-h-screen flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-tech-primary"></div>
+                    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#090d16]">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-tech-primary"></div>
+                            <span className="text-slate-600 dark:text-slate-300 font-semibold">Preparando ambiente legível...</span>
+                        </div>
                     </div>
                 );
             }
 
             return (
-                <div className="min-h-screen p-4 md:p-8 max-w-6xl mx-auto flex flex-col gap-8">
+                <div className={`min-h-screen p-4 md:p-8 max-w-6xl mx-auto flex flex-col gap-8 transition-all ${fontSize === 'large' ? 'text-lg' : 'text-sm'}`}>
                     
                     {/* Header */}
-                    <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-tech-border pb-6">
-                        <div>
-                            <div className="flex items-center gap-3 mb-2">
-                                <ServerIcon />
-                                <span className="text-tech-primary font-semibold tracking-wider text-sm uppercase">Planejamento</span>
+                    <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 border-b border-slate-200 dark:border-slate-800 pb-6">
+                        <div className="space-y-2 max-w-2xl">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sky-600 dark:text-sky-400"><ServerIcon /></span>
+                                <span className="text-sky-600 dark:text-sky-400 font-bold tracking-wider text-xs sm:text-sm uppercase">Plano Estratégico</span>
                             </div>
-                            <h1 className="text-3xl md:text-4xl font-bold text-tech-textHighlight tracking-tight flex flex-wrap items-center gap-3">
+                            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
                                 Planejamento de Infraestrutura e Implantação da SUBGEP
-                                <span className="text-sm px-2 py-1 bg-tech-primary/20 text-tech-primary rounded-lg border border-tech-primary/30">v1.0 Firebase</span>
                             </h1>
-                            <div className={`mt-4 inline-flex items-center gap-2 px-3 py-1.5 border rounded-full text-xs font-medium shadow-sm transition-colors ${getStatusColor()}`}>
-                                {isFirebaseConfigured && saveStatus.state !== 'local' ? <CloudIcon className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-tech-success"></div>}
-                                <span>{saveStatus.message}</span>
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                                <span className="text-xs px-2.5 py-1 bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-400 rounded-lg border border-sky-200 dark:border-sky-800/40 font-bold">
+                                    v1.1 Acessível & Sincronizado
+                                </span>
+                                <div className={`inline-flex items-center gap-2 px-3 py-1 border rounded-full text-xs font-semibold shadow-sm transition-colors ${getStatusStyles()}`}>
+                                    {isFirebaseConfigured && saveStatus.state !== 'local' ? <CloudIcon className="w-3.5 h-3.5" /> : <div className="w-2 h-2 rounded-full bg-emerald-500"></div>}
+                                    <span>{saveStatus.message}</span>
+                                </div>
                             </div>
                         </div>
-                        <div className="bg-tech-card p-4 rounded-xl border border-tech-border flex flex-col gap-3 min-w-[250px]">
-                            <div className="flex items-center gap-3 text-sm">
-                                <CalendarIcon />
-                                <span><strong className="text-tech-textHighlight">Início:</strong> a combinar</span>
+                        
+                        {/* Metadados da Equipa */}
+                        <div className="bg-white dark:bg-slate-800/80 p-5 rounded-xl border border-slate-200 dark:border-slate-700/80 flex flex-col gap-4 shadow-sm w-full lg:w-auto lg:min-w-[320px]">
+                            <div className="grid grid-cols-2 gap-3 pb-3 border-b border-slate-100 dark:border-slate-700/50">
+                                <div className="flex items-center gap-2.5 text-xs sm:text-sm">
+                                    <span className="text-slate-500 dark:text-slate-400"><CalendarIcon /></span>
+                                    <div>
+                                        <div className="text-[10px] text-slate-400 uppercase font-semibold">Data Início</div>
+                                        <div className="font-bold text-slate-900 dark:text-white">A combinar</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2.5 text-xs sm:text-sm">
+                                    <span className="text-slate-500 dark:text-slate-400"><ClockIcon /></span>
+                                    <div>
+                                        <div className="text-[10px] text-slate-400 uppercase font-semibold">Prazo Estimado</div>
+                                        <div className="font-bold text-slate-900 dark:text-white">A combinar</div>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-3 text-sm">
-                                <ClockIcon />
-                                <span><strong className="text-tech-textHighlight">Prazo Estimado:</strong> a combinar</span>
-                            </div>
-                            <div className="flex items-center gap-3 text-sm text-tech-primary">
-                                <UserIcon />
-                                <span>André Pessino</span>
-                                <UserIcon />
-                                <span>Bruno Sampaio</span>
-                                <UserIcon />
-                                <span>Eron Cerqueira</span>
-                                <UserIcon />
-                                <span>Gabriel Bandeira</span>
+                            <div>
+                                <div className="text-[10px] text-slate-400 uppercase font-semibold mb-2">Equipe de TI Responsável</div>
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+                                    <span className="flex items-center gap-1.5"><span className="text-sky-500 dark:text-sky-400"><UserIcon /></span>André Pessino</span>
+                                    <span className="flex items-center gap-1.5"><span className="text-sky-500 dark:text-sky-400"><UserIcon /></span>Bruno Sampaio</span>
+                                    <span className="flex items-center gap-1.5"><span className="text-sky-500 dark:text-sky-400"><UserIcon /></span>Eron Cerqueira</span>
+                                    <span className="flex items-center gap-1.5"><span className="text-sky-500 dark:text-sky-400"><UserIcon /></span>Gabriel Bandeira</span>
+                                </div>
                             </div>
                         </div>
                     </header>
 
-                    {/* Banner Colaboração */}
-                    <section className="bg-tech-card border-l-4 border-tech-primary p-6 rounded-r-xl shadow-lg relative overflow-hidden">
-                        <div className="absolute -right-10 -top-10 w-32 h-32 bg-tech-primary opacity-10 rounded-full blur-2xl"></div>
-                        <h3 className="text-xl font-semibold text-tech-textHighlight mb-3 flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-tech-primary"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                            Requisito de Colaboração
+                    {/* Barra de Acessibilidade e Configuração Visual */}
+                    <section className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4 rounded-xl shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 1 0 0-12v12z"/></svg>
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-slate-900 dark:text-white text-sm">Controle de Visualização e Leitura</h4>
+                                <p className="text-xs text-slate-600 dark:text-slate-300">Ajuste o layout e as fontes para facilitar a leitura conforme sua preferência.</p>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                            {/* Seletor de Tema */}
+                            <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
+                                <button 
+                                    onClick={() => setTheme('light')}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${theme === 'light' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'}`}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+                                    Fundo Claro
+                                </button>
+                                <button 
+                                    onClick={() => setTheme('dark')}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${theme === 'dark' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'}`}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                                    Fundo Escuro
+                                </button>
+                            </div>
+
+                            {/* Seletor de Tamanho de Fonte */}
+                            <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
+                                <button 
+                                    onClick={() => setFontSize('normal')}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${fontSize === 'normal' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'}`}
+                                >
+                                    Letra Normal
+                                </button>
+                                <button 
+                                    onClick={() => setFontSize('large')}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${fontSize === 'large' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'}`}
+                                >
+                                    Letra Grande A+
+                                </button>
+                            </div>
+
+                            {/* Filtro de Negrito e Alto Contraste */}
+                            <button 
+                                onClick={() => setHighContrast(!highContrast)}
+                                className={`px-3.5 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-1.5 ${highContrast ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                                {highContrast ? 'Contraste Ativo ✓' : 'Ativar Negritos'}
+                            </button>
+                        </div>
+                    </section>
+
+                    {/* Banner Requisito de Colaboração (Legibilidade Corrigida no Escuro) */}
+                    <section className="bg-sky-50 dark:bg-slate-900 border-l-4 border-sky-500 p-6 rounded-r-xl shadow-md relative overflow-hidden border border-y-slate-200 border-r-slate-200 dark:border-y-slate-850 dark:border-r-slate-850">
+                        <div className="absolute -right-10 -top-10 w-32 h-32 bg-sky-500 opacity-10 rounded-full blur-2xl"></div>
+                        <h3 className="text-lg sm:text-xl font-extrabold text-sky-900 dark:text-sky-400 mb-3 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-sky-600 dark:text-sky-400"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            Requisito Crucial de Colaboração
                         </h3>
-                        <p className="text-tech-text leading-relaxed mb-4">
-                            Para a execução das atividades previstas neste planejamento, será necessária a colaboração das áreas envolvidas durante todas as etapas de implantação, garantindo alinhamento operacional e apoio às equipas técnicas. Também será fundamental a disponibilização de informações relacionadas como utilizadores, ativos e acessos. As equipes responsáveis deverão participar nos processos de validação, testes e homologações, assegurando a conformidade das entregas realizadas. A comunicação entre os setores envolvidos será essencial para o alinhamento das mudanças e cumprimento das janelas de manutenção estabelecidas para a execução das atividades.
+                        <p className={`leading-relaxed text-slate-800 dark:text-slate-100 ${fontSize === 'large' ? 'text-lg' : 'text-base'} ${highContrast ? 'font-semibold' : 'font-normal'}`}>
+                            Para a execução das atividades previstas neste planejamento, será necessária a <strong className="text-sky-900 dark:text-sky-300 font-extrabold underline decoration-sky-500 dark:decoration-sky-400 underline-offset-4 bg-sky-100/30 dark:bg-sky-950/40 px-1 rounded">colaboração ativa das áreas envolvidas</strong> durante todas as etapas de implantação, garantindo alinhamento operacional e apoio direto às equipes técnicas. Também será fundamental a <strong className="text-emerald-950 dark:text-emerald-300 font-extrabold bg-emerald-100/50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200/50 dark:border-emerald-800/30">disponibilização tempestiva de informações estruturadas</strong>, incluindo o mapeamento detalhado de utilizadores, ativos físicos, perfis de rede e acessos autorizados. As lideranças responsáveis deverão participar diretamente nas homologações, assegurando a total conformidade das entregas realizadas.
                         </p>
                     </section>
 
                     {/* Barra de Progresso */}
-                    <section className="bg-tech-card p-6 rounded-xl border border-tech-border sticky top-4 z-10 shadow-xl">
-                        <div className="flex justify-between items-end mb-2">
+                    <section className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 sticky top-4 z-20 shadow-md">
+                        <div className="flex justify-between items-end mb-3">
                             <div>
-                                <h2 className="text-lg font-semibold text-tech-textHighlight">Progresso da Implantação</h2>
-                                <p className="text-sm text-slate-400">{completedSteps.size} de {totalSteps} tarefas concluídas</p>
+                                <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Progresso de Execução do Cronograma</h2>
+                                <p className="text-sm text-slate-600 dark:text-slate-300 font-semibold">{completedSteps.size} de {totalSteps} tarefas concluídas</p>
                             </div>
-                            <div className="text-2xl font-bold text-tech-primary">{progressPercentage}%</div>
+                            <div className="text-2xl sm:text-3xl font-black text-sky-600 dark:text-sky-400">{progressPercentage}%</div>
                         </div>
-                        <div className="w-full bg-tech-bg rounded-full h-3 overflow-hidden border border-tech-border">
+                        <div className="w-full bg-slate-100 dark:bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-200 dark:border-slate-850">
                             <div 
-                                className="bg-gradient-to-r from-tech-primary to-tech-success h-3 rounded-full transition-all duration-500 ease-out" 
+                                className="bg-gradient-to-r from-sky-500 to-emerald-500 h-4 rounded-full transition-all duration-500 ease-out" 
                                 style={{ width: `${progressPercentage}%` }}
                             ></div>
                         </div>
                     </section>
 
+                    {/* Layout Principal */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         
                         {/* Timeline / Fases */}
-                        <div className="lg:col-span-2 flex flex-col gap-4">
-                            <h2 className="text-2xl font-semibold text-tech-textHighlight mb-2">Cronograma de Execução</h2>
+                        <div className="lg:col-span-2 flex flex-col gap-5">
+                            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white mb-1">Fases de Atividade</h2>
                             
                             {data.phases.map((phase) => {
                                 const isPhaseOpen = openPhases.has(phase.id);
@@ -486,37 +676,53 @@
                                 const isPhaseComplete = phaseCompletedSteps === phase.steps.length;
 
                                 return (
-                                    <div key={phase.id} className={`bg-tech-card rounded-xl border transition-all duration-300 ${isPhaseOpen ? 'border-tech-primary/50 shadow-lg shadow-tech-primary/5' : 'border-tech-border hover:border-slate-500'}`}>
+                                    <div 
+                                        key={phase.id} 
+                                        className={`bg-white dark:bg-slate-800 rounded-xl border transition-all duration-350 ${
+                                            isPhaseOpen 
+                                                ? 'border-sky-500 dark:border-sky-500 shadow-md ring-1 ring-sky-500/20' 
+                                                : 'border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500'
+                                        }`}
+                                    >
                                         
+                                        {/* Botão de Expansão da Fase */}
                                         <button 
                                             onClick={() => togglePhase(phase.id)}
                                             className="w-full p-5 flex items-center justify-between focus:outline-none group"
                                         >
                                             <div className="flex items-center gap-4 text-left">
-                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg transition-colors ${isPhaseComplete ? 'bg-tech-success text-white' : 'bg-tech-bg border border-tech-border text-tech-text group-hover:border-tech-primary'}`}>
+                                                <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-lg transition-colors ${
+                                                    isPhaseComplete 
+                                                        ? 'bg-emerald-500 text-white' 
+                                                        : 'bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 group-hover:border-sky-500'
+                                                }`}>
                                                     {isPhaseComplete ? '✓' : phase.id}
                                                 </div>
                                                 <div>
-                                                    <h3 className={`font-semibold text-lg transition-colors ${isPhaseComplete ? 'text-tech-success' : 'text-tech-textHighlight'}`}>
+                                                    <h3 className={`font-black tracking-tight leading-snug transition-colors ${
+                                                        fontSize === 'large' ? 'text-xl' : 'text-lg'
+                                                    } ${isPhaseComplete ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
                                                         {phase.title}
                                                     </h3>
-                                                    <p className="text-xs text-slate-400 mt-1">
-                                                        {phaseCompletedSteps} / {phase.steps.length} etapas concluídas
+                                                    <p className="text-xs font-bold text-slate-500 dark:text-slate-300 mt-1">
+                                                        {phaseCompletedSteps} de {phase.steps.length} etapas concluídas
                                                     </p>
                                                 </div>
                                             </div>
-                                            <ChevronDownIcon className={`text-slate-400 transition-transform duration-300 ${isPhaseOpen ? 'rotate-180 text-tech-primary' : ''}`} />
+                                            <ChevronDownIcon className={`text-slate-400 transition-transform duration-300 ${isPhaseOpen ? 'rotate-180 text-sky-500' : ''}`} />
                                         </button>
 
-                                        <div className={`overflow-hidden transition-all duration-300 ${isPhaseOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                            <div className="p-5 pt-0 border-t border-tech-border/50 bg-tech-card/50">
-                                                <ul className="mt-4 flex flex-col gap-3">
+                                        {/* Container das Etapas */}
+                                        <div className={`overflow-hidden transition-all duration-300 ${isPhaseOpen ? 'max-h-[1600px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                            <div className="p-5 pt-1 border-t border-slate-100 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-900/30">
+                                                <ul className="mt-2 flex flex-col gap-4">
                                                     {phase.steps.map(step => (
-                                                        <li key={step.id} 
-                                                            className="flex items-start gap-4 p-3 rounded-lg hover:bg-tech-bg/50 transition-colors cursor-pointer"
-                                                            onClick={() => toggleStep(step.id)}
+                                                        <li 
+                                                            key={step.id} 
+                                                            onClick={(e) => toggleStep(step.id, e)}
+                                                            className="flex items-start gap-4 p-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all duration-150 cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700 shadow-sm"
                                                         >
-                                                            <div className="mt-1">
+                                                            <div className="mt-1 flex-shrink-0">
                                                                 <input 
                                                                     type="checkbox" 
                                                                     className="tech-checkbox" 
@@ -524,12 +730,26 @@
                                                                     readOnly
                                                                 />
                                                             </div>
-                                                            <div>
-                                                                <p className={`font-medium transition-colors ${completedSteps.has(step.id) ? 'text-slate-400 line-through' : 'text-slate-200'}`}>
+                                                            <div className="space-y-1 w-full">
+                                                                <p className={`font-extrabold tracking-tight transition-colors ${
+                                                                    fontSize === 'large' ? 'text-lg' : 'text-base'
+                                                                } ${
+                                                                    completedSteps.has(step.id) 
+                                                                        ? 'text-slate-400 dark:text-slate-500 line-through font-semibold' 
+                                                                        : 'text-slate-900 dark:text-white'
+                                                                }`}>
                                                                     {step.name}
                                                                 </p>
                                                                 {step.desc && (
-                                                                    <p className="text-sm text-slate-500 mt-0.5">{step.desc}</p>
+                                                                    <div className={`mt-2 leading-relaxed transition-all ${
+                                                                        fontSize === 'large' ? 'text-[16px] sm:text-[17px]' : 'text-[14px] sm:text-[15px]'
+                                                                    } ${
+                                                                        completedSteps.has(step.id)
+                                                                            ? 'text-slate-400 dark:text-slate-500'
+                                                                            : 'text-slate-700 dark:text-slate-200'
+                                                                    }`}>
+                                                                        {formatDesc(step.desc)}
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         </li>
@@ -542,66 +762,75 @@
                             })}
                         </div>
 
-                        {/* Lateral */}
+                        {/* Coluna Lateral */}
                         <div className="flex flex-col gap-6">
                             
-                            <div className="bg-tech-card p-6 rounded-xl border border-tech-border">
-                                <h3 className="text-lg font-semibold text-tech-textHighlight mb-4 flex items-center gap-2">
+                            {/* Resultados Esperados */}
+                            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                                     <CheckCircleIcon />
-                                    Resultado Esperado
+                                    Resultados Estratégicos
                                 </h3>
                                 <ul className="flex flex-col gap-3">
                                     {data.results.map((res, index) => (
-                                        <li key={index} className="flex items-center gap-3 text-sm text-slate-300 bg-tech-bg/50 p-3 rounded-lg border border-tech-border/50">
-                                            <span className="text-tech-success">✔</span>
-                                            {res}
+                                        <li 
+                                            key={index} 
+                                            className="flex items-start gap-3 text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900/40 p-3.5 rounded-lg border border-slate-100 dark:border-slate-800"
+                                        >
+                                            <span className="text-emerald-500 font-bold mt-0.5 text-base">✔</span>
+                                            <span className={`font-bold ${fontSize === 'large' ? 'text-base' : 'text-sm'}`}>{res}</span>
                                         </li>
                                     ))}
                                 </ul>
                             </div>
 
+                            {/* Informações de Integração Firebase */}
                             <div className={`gradient-border ${saveStatus.state.startsWith('error') ? 'animate-pulse' : ''}`}>
                                 <div className="p-6">
-                                    <div className="flex items-center gap-3 mb-3 text-tech-primary">
+                                    <div className="flex items-center gap-3 mb-4 text-sky-500 dark:text-sky-400">
                                         <TargetIcon />
-                                        <h3 className="font-bold text-lg text-white tracking-wide">Integração Firebase</h3>
+                                        <h3 className="font-extrabold text-lg text-slate-900 dark:text-white tracking-wide">Integração do Projeto</h3>
                                     </div>
                                     
-                                    <div className="text-sm text-slate-300 space-y-3">
+                                    <div className={`space-y-4 ${fontSize === 'large' ? 'text-base' : 'text-sm'} text-slate-700 dark:text-slate-300`}>
                                         {saveStatus.state === 'error_db' ? (
-                                            <div className="space-y-3 bg-red-900/20 p-4 rounded-lg border border-red-500/30">
-                                                <p className="text-red-400 font-semibold text-sm">Base de Dados Inexistente</p>
-                                                <p className="text-xs">
-                                                    O seu projeto existe, mas a base de dados ainda não foi criada. Vá à consola do Firebase &gt; <strong>Firestore Database</strong> e clique no botão <strong>Create database</strong>.
+                                            <div className="space-y-3 bg-red-50 border border-red-200 dark:bg-rose-950/20 dark:border-rose-900/50 p-4 rounded-xl">
+                                                <p className="text-red-700 dark:text-rose-400 font-extrabold text-sm uppercase tracking-wider">Base de Dados não Encontrada</p>
+                                                <p className="text-xs leading-relaxed text-slate-800 dark:text-slate-200">
+                                                    O seu projeto Firebase existe, mas o banco Cloud Firestore ainda não foi iniciado. Acesse o console &gt; <strong>Firestore Database</strong> e ative o banco clicando em <strong>Create database</strong>.
                                                 </p>
                                             </div>
                                         ) : saveStatus.state === 'error_rules' ? (
-                                            <div className="space-y-3 bg-red-900/20 p-4 rounded-lg border border-red-500/30">
-                                                <p className="text-red-400 font-semibold text-sm">Bloqueio de Regras</p>
-                                                <p className="text-xs">
-                                                    Vá à consola do Firebase &gt; Firestore Database &gt; Rules e substitua por:
+                                            <div className="space-y-3 bg-red-50 border border-red-200 dark:bg-rose-950/20 dark:border-rose-900/50 p-4 rounded-xl">
+                                                <p className="text-red-700 dark:text-rose-400 font-extrabold text-sm uppercase tracking-wider">Regras de Acesso Bloqueadas</p>
+                                                <p className="text-xs leading-relaxed text-slate-850 dark:text-slate-200">
+                                                    Para habilitar a leitura/escrita no Firestore Database, mude a aba <strong>Rules</strong> no Console para:
                                                 </p>
                                                 <textarea 
                                                     readOnly 
-                                                    className="w-full bg-black text-tech-primary p-3 rounded h-32 font-mono text-[10px] resize-none focus:outline-none focus:border-tech-primary shadow-inner" 
+                                                    className="w-full bg-slate-950 text-emerald-400 p-3 rounded-lg h-32 font-mono text-[10px] resize-none focus:outline-none focus:ring-1 focus:ring-sky-500 shadow-inner" 
                                                     value={`rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if true;\n    }\n  }\n}`} 
                                                     onClick={(e) => e.target.select()}
                                                 />
                                             </div>
                                         ) : isFirebaseConfigured ? (
-                                            <div className="space-y-2">
-                                                <p>O acompanhamento em tempo real via <strong className="text-white">Firebase</strong> está ativo e nativo.</p>
-                                                <p className="text-xs text-tech-success font-medium flex items-center gap-1">
-                                                    <span className="w-2 h-2 rounded-full bg-tech-success animate-ping"></span>
-                                                    Atualização automática.
+                                            <div className="space-y-3 bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                                                <p className="leading-relaxed font-bold text-slate-900 dark:text-white">
+                                                    O acompanhamento sincronizado em tempo real com o <strong className="text-sky-600 dark:text-sky-400 font-black">Firebase</strong> está ativo.
+                                                </p>
+                                                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/20 p-2 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                                                    Atualizações em tempo real habilitadas.
                                                 </p>
                                             </div>
                                         ) : (
-                                            <p>O salvamento local está ativo.</p>
+                                            <div className="p-4 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-100 dark:border-slate-800 font-bold text-slate-900 dark:text-white">
+                                                Salvamento local ativo. Suas alterações permanecem salvas neste navegador.
+                                            </div>
                                         )}
                                         
-                                        <div className="bg-tech-bg p-3 rounded border border-tech-border/50 text-tech-primary font-medium text-xs">
-                                            Meta: a combinar.
+                                        <div className="bg-sky-50 dark:bg-sky-950/30 p-3.5 rounded-lg border border-sky-100 dark:border-sky-900/30 text-sky-800 dark:text-sky-300 font-bold text-xs">
+                                            Meta de Conclusão: a definir conjuntamente.
                                         </div>
                                     </div>
                                 </div>
