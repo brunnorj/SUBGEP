@@ -199,20 +199,28 @@
             const [loading, setLoading] = useState(true);
             const [saveStatus, setSaveStatus] = useState({ state: 'loading', message: 'A carregar dados...' });
             
-            // Variável para impedir o "polling" de reverter o estado temporariamente enquanto estamos a guardar
+            // Variáveis de controlo para evitar conflitos (Race Conditions)
             const isSaving = useRef(false);
+            const lastLocalUpdate = useRef(0); // Regista o tempo da última alteração local
 
-            // Helper para interpretar dados do Supabase corretamente (Evita o bug de "apagar tudo")
+            // Helper robusto para forçar a interpretação correta de arrays vindos da base de dados
             const parseSupabaseData = (val) => {
                 if (!val) return [];
-                if (Array.isArray(val)) return val;
-                if (typeof val === 'string') {
-                    try { return JSON.parse(val); } catch (e) { return []; }
+                let parsed = val;
+                
+                // Em casos raros, a base de dados pode guardar uma string dentro de uma string
+                while (typeof parsed === 'string') {
+                    try { 
+                        parsed = JSON.parse(parsed); 
+                    } catch (e) { 
+                        break; 
+                    }
                 }
+                
+                if (Array.isArray(parsed)) return parsed;
                 return [];
             };
 
-            // Helper para identificar erros RLS
             const isRlsError = (err) => {
                 if (!err) return false;
                 if (err.code === '42501') return true;
@@ -275,13 +283,13 @@
             }, []);
 
             // 2. SINCRONIZAÇÃO AUTOMÁTICA (POLLING)
-            // Atualiza os ecrãs de toda a equipa a cada 3 segundos sem recarregar a página
             useEffect(() => {
                 if (!isSupabaseConfigured || loading) return;
 
                 const fetchUpdates = async () => {
-                    // Ignora a verificação se o nosso próprio utilizador estiver ativamente a guardar um dado
-                    if (isSaving.current) return;
+                    // TRANCA DE SEGURANÇA: Se estamos a gravar OU se gravámos nos últimos 5 segundos, 
+                    // ignora a leitura da nuvem. Isto evita ler dados velhos antes do servidor os atualizar.
+                    if (isSaving.current || (Date.now() - lastLocalUpdate.current < 5000)) return;
 
                     try {
                         const { data, error } = await supabase
@@ -293,7 +301,6 @@
                         if (data && !error) {
                             setCompletedSteps(prev => {
                                 const newData = parseSupabaseData(data.completed_steps);
-                                // Atualizar apenas se houver diferença visual
                                 if (prev.size !== newData.length) return new Set(newData);
                                 for (let item of prev) if (!newData.includes(item)) return new Set(newData);
                                 return prev;
@@ -307,22 +314,27 @@
                             setSaveStatus({ state: 'synced', message: 'Sincronizado' });
                         }
                     } catch (e) {
-                        // Erros em background são ignorados para não interromper a experiência
+                        // Ignora erros silenciosos no background
                     }
                 };
 
-                const intervalId = setInterval(fetchUpdates, 3000); // 3 segundos
+                const intervalId = setInterval(fetchUpdates, 3000); // Verifica a cada 3s
                 return () => clearInterval(intervalId);
             }, [isSupabaseConfigured, loading]);
 
-            // 3. GRAVAÇÃO NA NUVEM (Acionada APENAS pelos botões)
+            // 3. GRAVAÇÃO NA NUVEM
             const updateCloud = async (newSteps, newPhases) => {
                 const stepsArray = Array.from(newSteps);
                 const phasesArray = Array.from(newPhases);
 
+                // Regista o tempo da alteração para bloquear a sobreposição de leitura por 5s
+                lastLocalUpdate.current = Date.now();
+
+                // Faz SEMPRE um backup local imediato para prevenir perdas se apertarem F5
+                localStorage.setItem('glpi_completed_steps', JSON.stringify(stepsArray));
+                localStorage.setItem('glpi_open_phases', JSON.stringify(phasesArray));
+
                 if (!isSupabaseConfigured) {
-                    localStorage.setItem('glpi_completed_steps', JSON.stringify(stepsArray));
-                    localStorage.setItem('glpi_open_phases', JSON.stringify(phasesArray));
                     setSaveStatus({ state: 'local', message: 'Guardado localmente' });
                     return;
                 }
@@ -348,18 +360,14 @@
                         } else {
                             throw error; 
                         }
-                        // Fallback de erro
-                        localStorage.setItem('glpi_completed_steps', JSON.stringify(stepsArray));
-                        localStorage.setItem('glpi_open_phases', JSON.stringify(phasesArray));
                         return; 
                     }
                     setSaveStatus({ state: 'synced', message: 'Sincronizado' });
                 } catch (error) {
                     console.error("Erro ao guardar na nuvem:", error);
-                    setSaveStatus({ state: 'error', message: 'Erro ao guardar' });
+                    setSaveStatus({ state: 'error', message: 'Erro ao guardar (Local)' });
                 } finally {
-                    // Liberta o "polling" após 1 segundo
-                    setTimeout(() => { isSaving.current = false; }, 1000);
+                    isSaving.current = false;
                 }
             };
 
