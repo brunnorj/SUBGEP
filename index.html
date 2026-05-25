@@ -200,6 +200,14 @@
             const [loading, setLoading] = useState(true);
             const [saveStatus, setSaveStatus] = useState({ state: 'loading', message: 'Carregando dados...' });
 
+            // Helper para identificar erros RLS
+            const isRlsError = (err) => {
+                if (!err) return false;
+                if (err.code === '42501') return true;
+                if (err.message && err.message.toLowerCase().includes('row-level sec')) return true;
+                return false;
+            };
+
             // Carregamento inicial de dados (Supabase ou LocalStorage)
             useEffect(() => {
                 const loadData = async () => {
@@ -225,10 +233,14 @@
                             .single();
 
                         if (error && error.code !== 'PGRST116') { 
-                            if (error.code === 'PGRST204') {
+                            if (error.code === 'PGRST204' || error.code === '42703') {
                                 console.warn("Tabela encontrada, mas faltam colunas. Fazendo fallback local.");
                                 fallbackToLocal();
                                 setSaveStatus({ state: 'error_columns', message: 'Faltam colunas (Salvo Local)' });
+                            } else if (isRlsError(error)) {
+                                console.warn("Erro de RLS (Segurança) detetado.");
+                                fallbackToLocal();
+                                setSaveStatus({ state: 'error_rls', message: 'Bloqueio de Segurança (RLS)' });
                             } else {
                                 console.error("Erro ao carregar do Supabase:", error);
                                 fallbackToLocal();
@@ -285,11 +297,17 @@
                             });
 
                         if (error) {
-                            if (error.code === 'PGRST204') {
-                                console.warn("Erro PGRST204: Faltam colunas na tabela do Supabase. Salvando localmente.");
+                            if (error.code === 'PGRST204' || error.code === '42703') {
+                                console.warn("Erro 42703/PGRST204: Faltam colunas na tabela do Supabase. Salvando localmente.");
                                 saveLocal();
                                 setSaveStatus({ state: 'error_columns', message: 'Faltam colunas (Salvo Local)' });
                                 return; 
+                            }
+                            if (isRlsError(error)) {
+                                console.warn("Erro RLS ao salvar. Salvando localmente.");
+                                saveLocal();
+                                setSaveStatus({ state: 'error_rls', message: 'Bloqueio de Segurança (RLS)' });
+                                return;
                             }
                             throw error; 
                         }
@@ -298,7 +316,6 @@
                         console.error("Erro ao salvar no Supabase:", error);
                         saveLocal(); 
                         
-                        // Formatar erro para caber na tag
                         let errMsg = error.message || 'Erro desconhecido';
                         if (errMsg.length > 30) errMsg = errMsg.substring(0, 30) + '...';
                         
@@ -342,13 +359,14 @@
                     case 'synced': return 'bg-tech-success text-white border-tech-success';
                     case 'saving': return 'bg-tech-primary text-white border-tech-primary animate-pulse';
                     case 'error_columns': 
+                    case 'error_rls':
                     case 'error': return 'bg-red-500 text-white border-red-500';
                     case 'local': return 'bg-tech-card text-slate-300 border-tech-border';
                     default: return 'bg-tech-card text-slate-300 border-tech-border';
                 }
             };
 
-            // Script SQL para resolução rápida COM DESATIVAÇÃO DE RLS
+            // Script SQL para resolver RLS criando uma política permissiva explícita
             const sqlFixScript = `-- 1. Criar a tabela se não existir
 CREATE TABLE IF NOT EXISTS planejamento_state (
   id bigint PRIMARY KEY,
@@ -359,12 +377,15 @@ CREATE TABLE IF NOT EXISTS planejamento_state (
 
 -- 2. Garantir que as colunas existem
 ALTER TABLE planejamento_state
+  ADD COLUMN IF NOT EXISTS id bigint,
   ADD COLUMN IF NOT EXISTS completed_steps jsonb,
   ADD COLUMN IF NOT EXISTS open_phases jsonb,
   ADD COLUMN IF NOT EXISTS updated_at timestamptz;
 
--- 3. DESATIVAR RLS (Crucial para permitir gravações anónimas)
-ALTER TABLE planejamento_state DISABLE ROW LEVEL SECURITY;
+-- 3. Configurar Segurança (RLS) para permitir salvar anónimo
+ALTER TABLE planejamento_state ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir_Tudo" ON planejamento_state;
+CREATE POLICY "Permitir_Tudo" ON planejamento_state FOR ALL TO anon USING (true) WITH CHECK (true);
 
 -- 4. Recarregar a cache do Supabase imediatamente
 NOTIFY pgrst, 'reload schema';`;
@@ -532,7 +553,7 @@ NOTIFY pgrst, 'reload schema';`;
                                 </ul>
                             </div>
 
-                            <div className={`gradient-border ${saveStatus.state === 'error_columns' || saveStatus.state === 'error' ? 'animate-pulse' : ''}`}>
+                            <div className={`gradient-border ${saveStatus.state.startsWith('error') ? 'animate-pulse' : ''}`}>
                                 <div className="p-6">
                                     <div className="flex items-center gap-3 mb-3 text-tech-primary">
                                         <TargetIcon />
@@ -540,11 +561,15 @@ NOTIFY pgrst, 'reload schema';`;
                                     </div>
                                     
                                     <div className="text-sm text-slate-300 space-y-3">
-                                        {saveStatus.state === 'error_columns' || saveStatus.state === 'error' ? (
+                                        {saveStatus.state === 'error_rls' || saveStatus.state === 'error_columns' || saveStatus.state === 'error' ? (
                                             <div className="space-y-3 bg-red-900/20 p-4 rounded-lg border border-red-500/30">
-                                                <p className="text-red-400 font-semibold text-sm">Ação Necessária no Supabase</p>
+                                                <p className="text-red-400 font-semibold text-sm">
+                                                    {saveStatus.state === 'error_rls' ? 'Bloqueio de RLS (Segurança)' : 'Ação Necessária no Supabase'}
+                                                </p>
                                                 <p className="text-xs">
-                                                    Execute o código abaixo no <strong>SQL Editor</strong> do Supabase. Isto irá desativar o bloqueio de segurança (RLS) e recarregar a tabela:
+                                                    {saveStatus.state === 'error_rls' 
+                                                        ? 'O Supabase bloqueou a gravação. Execute o código abaixo no SQL Editor para criar uma Política de Acesso Público:'
+                                                        : 'A tabela ou colunas falharam ao carregar. Execute o código abaixo no SQL Editor do Supabase:'}
                                                 </p>
                                                 <textarea 
                                                     readOnly 
