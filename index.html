@@ -202,6 +202,16 @@
             // Variável para impedir o "polling" de reverter o estado temporariamente enquanto estamos a guardar
             const isSaving = useRef(false);
 
+            // Helper para interpretar dados do Supabase corretamente (Evita o bug de "apagar tudo")
+            const parseSupabaseData = (val) => {
+                if (!val) return [];
+                if (Array.isArray(val)) return val;
+                if (typeof val === 'string') {
+                    try { return JSON.parse(val); } catch (e) { return []; }
+                }
+                return [];
+            };
+
             // Helper para identificar erros RLS
             const isRlsError = (err) => {
                 if (!err) return false;
@@ -246,8 +256,8 @@
                                 setSaveStatus({ state: 'error', message: `Erro ao carregar nuvem` });
                             }
                         } else if (data) {
-                            if (data.completed_steps) setCompletedSteps(new Set(data.completed_steps));
-                            if (data.open_phases) setOpenPhases(new Set(data.open_phases));
+                            if (data.completed_steps != null) setCompletedSteps(new Set(parseSupabaseData(data.completed_steps)));
+                            if (data.open_phases != null) setOpenPhases(new Set(parseSupabaseData(data.open_phases)));
                             setSaveStatus({ state: 'synced', message: 'Sincronizado' });
                         } else {
                             fallbackToLocal();
@@ -282,14 +292,14 @@
 
                         if (data && !error) {
                             setCompletedSteps(prev => {
-                                const newData = data.completed_steps || [];
+                                const newData = parseSupabaseData(data.completed_steps);
                                 // Atualizar apenas se houver diferença visual
                                 if (prev.size !== newData.length) return new Set(newData);
                                 for (let item of prev) if (!newData.includes(item)) return new Set(newData);
                                 return prev;
                             });
                             setOpenPhases(prev => {
-                                const newData = data.open_phases || [];
+                                const newData = parseSupabaseData(data.open_phases);
                                 if (prev.size !== newData.length) return new Set(newData);
                                 for (let item of prev) if (!newData.includes(item)) return new Set(newData);
                                 return prev;
