@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-PT" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -106,7 +106,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
         // ==========================================
         // CONFIGURAÇÃO DO SUPABASE
@@ -114,7 +114,6 @@
         const SUPABASE_URL = 'https://xvlwnuzzagjoszintbxl.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2bHdudXp6YWdqb3N6aW50YnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTA0NDksImV4cCI6MjA5NTI4NjQ0OX0.18nDiUS0XsHZg0o0wgKAofUmlKtWQ02pBefCO81r12g';
         
-        // Verifica se as chaves foram preenchidas antes de inicializar de forma mais robusta
         const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_URL.startsWith('http'));
         const supabase = isSupabaseConfigured 
             ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
@@ -198,7 +197,10 @@
             const [completedSteps, setCompletedSteps] = useState(new Set());
             const [openPhases, setOpenPhases] = useState(new Set([1]));
             const [loading, setLoading] = useState(true);
-            const [saveStatus, setSaveStatus] = useState({ state: 'loading', message: 'Carregando dados...' });
+            const [saveStatus, setSaveStatus] = useState({ state: 'loading', message: 'A carregar dados...' });
+            
+            // Variável para impedir o "polling" de reverter o estado temporariamente enquanto estamos a guardar
+            const isSaving = useRef(false);
 
             // Helper para identificar erros RLS
             const isRlsError = (err) => {
@@ -208,7 +210,7 @@
                 return false;
             };
 
-            // Carregamento inicial de dados (Supabase ou LocalStorage)
+            // 1. CARREGAMENTO INICIAL
             useEffect(() => {
                 const loadData = async () => {
                     const fallbackToLocal = () => {
@@ -221,7 +223,7 @@
                     if (!isSupabaseConfigured) {
                         fallbackToLocal();
                         setLoading(false);
-                        setSaveStatus({ state: 'local', message: 'Salvamento Local Ativo' });
+                        setSaveStatus({ state: 'local', message: 'A guardar localmente' });
                         return;
                     }
 
@@ -234,30 +236,26 @@
 
                         if (error && error.code !== 'PGRST116') { 
                             if (error.code === 'PGRST204' || error.code === '42703') {
-                                console.warn("Tabela encontrada, mas faltam colunas. Fazendo fallback local.");
                                 fallbackToLocal();
-                                setSaveStatus({ state: 'error_columns', message: 'Faltam colunas (Salvo Local)' });
+                                setSaveStatus({ state: 'error_columns', message: 'Faltam colunas (Local)' });
                             } else if (isRlsError(error)) {
-                                console.warn("Erro de RLS (Segurança) detetado.");
                                 fallbackToLocal();
-                                setSaveStatus({ state: 'error_rls', message: 'Bloqueio de Segurança (RLS)' });
+                                setSaveStatus({ state: 'error_rls', message: 'Bloqueio de Segurança' });
                             } else {
-                                console.error("Erro ao carregar do Supabase:", error);
                                 fallbackToLocal();
-                                setSaveStatus({ state: 'error', message: `Erro: ${error.message || 'Falha ao carregar nuvem'}` });
+                                setSaveStatus({ state: 'error', message: `Erro ao carregar nuvem` });
                             }
                         } else if (data) {
                             if (data.completed_steps) setCompletedSteps(new Set(data.completed_steps));
                             if (data.open_phases) setOpenPhases(new Set(data.open_phases));
-                            setSaveStatus({ state: 'synced', message: 'Sincronizado com a Nuvem' });
+                            setSaveStatus({ state: 'synced', message: 'Sincronizado' });
                         } else {
                             fallbackToLocal();
-                            setSaveStatus({ state: 'synced', message: 'Pronto para salvar na Nuvem' });
+                            setSaveStatus({ state: 'synced', message: 'Pronto para nuvem' });
                         }
                     } catch (error) {
-                        console.error("Erro de conexão:", error);
                         fallbackToLocal();
-                        setSaveStatus({ state: 'error', message: 'Erro de conexão' });
+                        setSaveStatus({ state: 'error', message: 'Erro de ligação' });
                     } finally {
                         setLoading(false);
                     }
@@ -266,73 +264,99 @@
                 loadData();
             }, []);
 
-            // Salvar dados toda vez que o estado mudar
+            // 2. SINCRONIZAÇÃO AUTOMÁTICA (POLLING)
+            // Atualiza os ecrãs de toda a equipa a cada 3 segundos sem recarregar a página
             useEffect(() => {
-                if (loading) return; // Não salva enquanto estiver carregando os dados iniciais
+                if (!isSupabaseConfigured || loading) return;
 
-                const saveData = async () => {
-                    const stepsArray = Array.from(completedSteps);
-                    const phasesArray = Array.from(openPhases);
+                const fetchUpdates = async () => {
+                    // Ignora a verificação se o nosso próprio utilizador estiver ativamente a guardar um dado
+                    if (isSaving.current) return;
 
-                    const saveLocal = () => {
-                        localStorage.setItem('glpi_completed_steps', JSON.stringify(stepsArray));
-                        localStorage.setItem('glpi_open_phases', JSON.stringify(phasesArray));
-                    };
-
-                    if (!isSupabaseConfigured) {
-                        saveLocal();
-                        setSaveStatus({ state: 'local', message: 'Salvo localmente' });
-                        return;
-                    }
-
-                    setSaveStatus({ state: 'saving', message: 'Salvando na nuvem...' });
                     try {
-                        const { error } = await supabase
+                        const { data, error } = await supabase
                             .from('planejamento_state')
-                            .upsert({ 
-                                id: 1, 
-                                completed_steps: stepsArray,
-                                open_phases: phasesArray,
-                                updated_at: new Date().toISOString()
-                            });
+                            .select('completed_steps, open_phases')
+                            .eq('id', 1)
+                            .single();
 
-                        if (error) {
-                            if (error.code === 'PGRST204' || error.code === '42703') {
-                                console.warn("Erro 42703/PGRST204: Faltam colunas na tabela do Supabase. Salvando localmente.");
-                                saveLocal();
-                                setSaveStatus({ state: 'error_columns', message: 'Faltam colunas (Salvo Local)' });
-                                return; 
-                            }
-                            if (isRlsError(error)) {
-                                console.warn("Erro RLS ao salvar. Salvando localmente.");
-                                saveLocal();
-                                setSaveStatus({ state: 'error_rls', message: 'Bloqueio de Segurança (RLS)' });
-                                return;
-                            }
-                            throw error; 
+                        if (data && !error) {
+                            setCompletedSteps(prev => {
+                                const newData = data.completed_steps || [];
+                                // Atualizar apenas se houver diferença visual
+                                if (prev.size !== newData.length) return new Set(newData);
+                                for (let item of prev) if (!newData.includes(item)) return new Set(newData);
+                                return prev;
+                            });
+                            setOpenPhases(prev => {
+                                const newData = data.open_phases || [];
+                                if (prev.size !== newData.length) return new Set(newData);
+                                for (let item of prev) if (!newData.includes(item)) return new Set(newData);
+                                return prev;
+                            });
+                            setSaveStatus({ state: 'synced', message: 'Sincronizado' });
                         }
-                        setSaveStatus({ state: 'synced', message: 'Salvo na Nuvem' });
-                    } catch (error) {
-                        console.error("Erro ao salvar no Supabase:", error);
-                        saveLocal(); 
-                        
-                        let errMsg = error.message || 'Erro desconhecido';
-                        if (errMsg.length > 30) errMsg = errMsg.substring(0, 30) + '...';
-                        
-                        setSaveStatus({ state: 'error', message: `Erro: ${errMsg}` });
+                    } catch (e) {
+                        // Erros em background são ignorados para não interromper a experiência
                     }
                 };
 
-                const timeoutId = setTimeout(() => {
-                    saveData();
-                }, 500);
+                const intervalId = setInterval(fetchUpdates, 3000); // 3 segundos
+                return () => clearInterval(intervalId);
+            }, [isSupabaseConfigured, loading]);
 
-                return () => clearTimeout(timeoutId);
-            }, [completedSteps, openPhases, loading]);
+            // 3. GRAVAÇÃO NA NUVEM (Acionada APENAS pelos botões)
+            const updateCloud = async (newSteps, newPhases) => {
+                const stepsArray = Array.from(newSteps);
+                const phasesArray = Array.from(newPhases);
+
+                if (!isSupabaseConfigured) {
+                    localStorage.setItem('glpi_completed_steps', JSON.stringify(stepsArray));
+                    localStorage.setItem('glpi_open_phases', JSON.stringify(phasesArray));
+                    setSaveStatus({ state: 'local', message: 'Guardado localmente' });
+                    return;
+                }
+
+                isSaving.current = true;
+                setSaveStatus({ state: 'saving', message: 'A guardar...' });
+
+                try {
+                    const { error } = await supabase
+                        .from('planejamento_state')
+                        .upsert({ 
+                            id: 1, 
+                            completed_steps: stepsArray,
+                            open_phases: phasesArray,
+                            updated_at: new Date().toISOString()
+                        });
+
+                    if (error) {
+                        if (error.code === 'PGRST204' || error.code === '42703') {
+                            setSaveStatus({ state: 'error_columns', message: 'Faltam colunas (Local)' });
+                        } else if (isRlsError(error)) {
+                            setSaveStatus({ state: 'error_rls', message: 'Bloqueio RLS (Local)' });
+                        } else {
+                            throw error; 
+                        }
+                        // Fallback de erro
+                        localStorage.setItem('glpi_completed_steps', JSON.stringify(stepsArray));
+                        localStorage.setItem('glpi_open_phases', JSON.stringify(phasesArray));
+                        return; 
+                    }
+                    setSaveStatus({ state: 'synced', message: 'Sincronizado' });
+                } catch (error) {
+                    console.error("Erro ao guardar na nuvem:", error);
+                    setSaveStatus({ state: 'error', message: 'Erro ao guardar' });
+                } finally {
+                    // Liberta o "polling" após 1 segundo
+                    setTimeout(() => { isSaving.current = false; }, 1000);
+                }
+            };
 
             const totalSteps = data.phases.reduce((acc, phase) => acc + phase.steps.length, 0);
             const progressPercentage = Math.round((completedSteps.size / totalSteps) * 100);
 
+            // Ações manuais
             const toggleStep = (stepId) => {
                 const newCompleted = new Set(completedSteps);
                 if (newCompleted.has(stepId)) {
@@ -340,7 +364,8 @@
                 } else {
                     newCompleted.add(stepId);
                 }
-                setCompletedSteps(newCompleted);
+                setCompletedSteps(newCompleted); // Atualiza UI instantaneamente
+                updateCloud(newCompleted, openPhases); // Envia as alterações
             };
 
             const togglePhase = (phaseId) => {
@@ -351,6 +376,7 @@
                     newOpen.add(phaseId);
                 }
                 setOpenPhases(newOpen);
+                updateCloud(completedSteps, newOpen);
             };
 
             // Status Badge Colors
@@ -366,7 +392,6 @@
                 }
             };
 
-            // Script SQL para resolver RLS criando uma política permissiva explícita
             const sqlFixScript = `-- 1. Criar a tabela se não existir
 CREATE TABLE IF NOT EXISTS planejamento_state (
   id bigint PRIMARY KEY,
@@ -382,7 +407,7 @@ ALTER TABLE planejamento_state
   ADD COLUMN IF NOT EXISTS open_phases jsonb,
   ADD COLUMN IF NOT EXISTS updated_at timestamptz;
 
--- 3. Configurar Segurança (RLS) para permitir salvar anónimo
+-- 3. Configurar Segurança (RLS) para permitir guardar anónimo
 ALTER TABLE planejamento_state ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Permitir_Tudo" ON planejamento_state;
 CREATE POLICY "Permitir_Tudo" ON planejamento_state FOR ALL TO anon USING (true) WITH CHECK (true);
@@ -406,10 +431,10 @@ NOTIFY pgrst, 'reload schema';`;
                         <div>
                             <div className="flex items-center gap-3 mb-2">
                                 <ServerIcon />
-                                <span className="text-tech-primary font-semibold tracking-wider text-sm uppercase">Planejamento</span>
+                                <span className="text-tech-primary font-semibold tracking-wider text-sm uppercase">Planeamento</span>
                             </div>
                             <h1 className="text-3xl md:text-4xl font-bold text-tech-textHighlight tracking-tight">
-                                Planejamento de Infraestrutura e Implantação da SUBGEP
+                                Planeamento de Infraestrutura e Implantação da SUBGEP
                             </h1>
                             <div className={`mt-4 inline-flex items-center gap-2 px-3 py-1.5 border rounded-full text-xs font-medium shadow-sm transition-colors ${getStatusColor()}`}>
                                 {isSupabaseConfigured && saveStatus.state !== 'local' ? <CloudIcon className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-tech-success"></div>}
@@ -446,7 +471,7 @@ NOTIFY pgrst, 'reload schema';`;
                             Requisito de Colaboração
                         </h3>
                         <p className="text-tech-text leading-relaxed mb-4">
-                            Para a execução das atividades previstas neste planejamento, será necessária a colaboração das áreas envolvidas durante todas as etapas de implantação, garantindo alinhamento operacional e apoio às equipes técnicas. Também será fundamental a disponibilização de informações relacionadas a usuários, ativos e acessos, além da liberação de acesso físico aos ambientes de infraestrutura e telecomunicações. As equipes responsáveis deverão participar dos processos de validação, testes e homologações, assegurando a conformidade das entregas realizadas. A comunicação entre os setores envolvidos será essencial para o alinhamento das mudanças e cumprimento das janelas de manutenção estabelecidas para execução das atividades.
+                            Para a execução das atividades previstas neste planeamento, será necessária a colaboração das áreas envolvidas durante todas as etapas de implantação, garantindo alinhamento operacional e apoio às equipas técnicas. Também será fundamental a disponibilização de informações relacionadas com utilizadores, ativos e acessos, além da libertação de acesso físico aos ambientes de infraestrutura e telecomunicações. As equipas responsáveis deverão participar nos processos de validação, testes e homologações, assegurando a conformidade das entregas realizadas. A comunicação entre os setores envolvidos será essencial para o alinhamento das mudanças e cumprimento das janelas de manutenção estabelecidas para a execução das atividades.
                         </p>
                     </section>
 
@@ -557,19 +582,17 @@ NOTIFY pgrst, 'reload schema';`;
                                 <div className="p-6">
                                     <div className="flex items-center gap-3 mb-3 text-tech-primary">
                                         <TargetIcon />
-                                        <h3 className="font-bold text-lg text-white tracking-wide">Integração Nuvem</h3>
+                                        <h3 className="font-bold text-lg text-white tracking-wide">Integração Nuvem (Ao Vivo)</h3>
                                     </div>
                                     
                                     <div className="text-sm text-slate-300 space-y-3">
                                         {saveStatus.state === 'error_rls' || saveStatus.state === 'error_columns' || saveStatus.state === 'error' ? (
                                             <div className="space-y-3 bg-red-900/20 p-4 rounded-lg border border-red-500/30">
                                                 <p className="text-red-400 font-semibold text-sm">
-                                                    {saveStatus.state === 'error_rls' ? 'Bloqueio de RLS (Segurança)' : 'Ação Necessária no Supabase'}
+                                                    {saveStatus.state === 'error_rls' ? 'Bloqueio de Segurança' : 'Ação Necessária no Supabase'}
                                                 </p>
                                                 <p className="text-xs">
-                                                    {saveStatus.state === 'error_rls' 
-                                                        ? 'O Supabase bloqueou a gravação. Execute o código abaixo no SQL Editor para criar uma Política de Acesso Público:'
-                                                        : 'A tabela ou colunas falharam ao carregar. Execute o código abaixo no SQL Editor do Supabase:'}
+                                                    Para habilitar a sincronização, execute o código abaixo no SQL Editor:
                                                 </p>
                                                 <textarea 
                                                     readOnly 
@@ -577,19 +600,17 @@ NOTIFY pgrst, 'reload schema';`;
                                                     value={sqlFixScript} 
                                                     onClick={(e) => e.target.select()}
                                                 />
-                                                <p className="text-[10px] text-slate-400">Após executar o código, atualize esta página (F5).</p>
                                             </div>
                                         ) : isSupabaseConfigured ? (
-                                            <p>O salvamento na nuvem via <strong className="text-white">Supabase</strong> está ativo. Verifique a etiqueta de status no topo.</p>
+                                            <div className="space-y-2">
+                                                <p>O acompanhamento em tempo real via <strong className="text-white">Supabase</strong> está ativo.</p>
+                                                <p className="text-xs text-tech-success font-medium flex items-center gap-1">
+                                                    <span className="w-2 h-2 rounded-full bg-tech-success animate-ping"></span>
+                                                    A atualizar automaticamente a equipa.
+                                                </p>
+                                            </div>
                                         ) : (
-                                            <>
-                                                <p>O salvamento local está ativo. Para habilitar a nuvem:</p>
-                                                <ol className="list-decimal pl-4 space-y-1 text-xs text-slate-400">
-                                                    <li>Crie um projeto no Supabase</li>
-                                                    <li>Crie uma tabela <code className="text-tech-primary">planejamento_state</code></li>
-                                                    <li>Insira a URL e a Anon Key no topo do código</li>
-                                                </ol>
-                                            </>
+                                            <p>O salvamento local está ativo e apenas visível para si.</p>
                                         )}
                                         
                                         <div className="bg-tech-bg p-3 rounded border border-tech-border/50 text-tech-primary font-medium text-xs">
