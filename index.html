@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planejamento de Infraestrutura e Implantação da SUBGEP</title>
+    
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        tech: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155',
+                            primary: '#0ea5e9',
+                            primaryHover: '#0284c7',
+                            success: '#10b981',
+                            text: '#cbd5e1',
+                            textHighlight: '#f8fafc'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #cbd5e1; }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        .tech-checkbox {
+            appearance: none;
+            background-color: transparent;
+            margin: 0;
+            font: inherit;
+            color: currentColor;
+            width: 1.25em;
+            height: 1.25em;
+            border: 2px solid #334155;
+            border-radius: 0.25em;
+            display: grid;
+            place-content: center;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .tech-checkbox::before {
+            content: "";
+            width: 0.65em;
+            height: 0.65em;
+            transform: scale(0);
+            transition: 120ms transform ease-in-out;
+            box-shadow: inset 1em 1em white;
+            background-color: white;
+            transform-origin: center;
+            clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+        }
+        .tech-checkbox:checked {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+        .tech-checkbox:checked::before {
+            transform: scale(1);
+        }
+
+        .gradient-border {
+            position: relative;
+            background: #1e293b;
+            background-clip: padding-box;
+            border: 2px solid transparent;
+            border-radius: 0.75rem;
+        }
+        .gradient-border::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; bottom: 0; left: 0;
+            z-index: -1;
+            margin: -2px;
+            border-radius: inherit;
+            background: linear-gradient(to right, #0ea5e9, #10b981);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ==========================================
+        // CONFIGURAÇÃO DO SUPABASE
+        // ==========================================
+        const SUPABASE_URL = 'https://xvlwnuzzagjoszintbxl.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2bHdudXp6YWdqb3N6aW50YnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3MTA0NDksImV4cCI6MjA5NTI4NjQ0OX0.18nDiUS0XsHZg0o0wgKAofUmlKtWQ02pBefCO81r12g';
+        
+        // Verifica se as chaves foram preenchidas antes de inicializar de forma mais robusta
+        const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_URL.startsWith('http'));
+        const supabase = isSupabaseConfigured 
+            ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
+            : null;
+
+        // SVGs Icons
+        const CalendarIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>;
+        const ClockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
+        const UserIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
+        const CheckCircleIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-tech-success"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
+        const TargetIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>;
+        const ChevronDownIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="6 9 12 15 18 9"></polyline></svg>;
+        const ServerIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>;
+        const CloudIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>;
+
+        const data = {
+            phases: [
+                {
+                    id: 1, title: "Fase 1 – Infraestrutura Física e Cabeamento", steps: [
+                        { id: "1-1", name: "Cabeamento", desc: "Aguardando o local estabelecido para acomodar a SUBGEP." },
+                        { id: "1-2", name: "Cabeamento Vertical", desc: "Diretrizes de Execução: Será estabelecido um uplink (entrocamento Trunk) a partir do Switch Core até o andar de destino para tráfego de dados das estações. Adicionalmene, será lançado um link dedicado originado do nosso Switch Core PoE, destinado a alimentar a transportar o tráfego da Infraestrutura de Access Point (DMZ). " },
+                        { id: "1-3", name: "Rack de Telecom de Andar", desc: "Diretrizes de Execução: Será implantado um rack de distribuição intermediário no andar. Esta estrutura acomodará a terminação do (cabeamento vertical) e hospedará os switches de acesso provisionados para a operação da SUBGEP." },
+                        { id: "1-4", name: "Provisionamento de Infraestrutura WI-FI", desc: "Diretrizes de Execução: Envolve a configuração de Access Points (APs Cisco ou Intelbras). A gerência dos equipamentos seguirá o padrão de nomenclatura institucional predefinido: CONECTA [andar]-[lado]." }, 
+                    ]
+                },
+                {
+                    id: 2, title: "Fase 2 – Rede e Conectividade", steps: [
+                        { id: "2-1", name: "Segmentação Lógica de Rede (VLAN’s)", desc: "Diretrizes de Execução: O dimensionamento dos domínios de broadcast (Vlan’s) será fundamentado na densidade de endpoints de cada setor. A topologia permitirá o agrupamento de até duas Superintendências por VLAN, limitando o escopo de endereçamento a um máximo de 4 sub-redes (blocos de IP) para otimização de tráfego e segurança." },
+                        { id: "2-2", name: "Endereçamento e Alocação de IP", desc: "Diretrizes de Execução: Após a consolidação do mapeamento de endpoints por Superintendência e Coordenadoria, será aplicado o plano de endereçamento. Isso permitirá a vinculação e atribuição prévia de endereços IP para as estações de trabalho mapeadas." },
+                        { id: "2-3", name: "Provisionamento de Ativos de Rede", desc: "Diretrizes de Execução: Baseado em informações identificamos aproximadamente 120 usuários na SUBGEP, será realizado a configuração de, no mínimo, 5 switches operando na camada de acesso (sendo ao menos equipamentos de 24 portas) para garantir a densidade de portas necessária e disponibilidade." },
+                        { id: "2-4", name: "Políticas de Firewall e Controle de Acesso", desc: "Diretrizes de Execução: Com a matriz de usuários e o plano de endereçamento IP definidos, será feito o levantamento dos perfis de acesso externo (Proderj, Fazenda e internet em geral). Os IPs alocados servirão de base para a solicitação de liberação de portas, regras de firewall junto aos órgãos competentes." },
+                        { id: "2-5", name: "Acesso Remoto Seguro (VPN)", desc: "Diretrizes de Execução: Realização de um levantamento junto aos líderes da SUBGEP para mapear o grupo de usuários que demandam acesso remoto. A lista validada será encaminhada ao PRODERJ para criação de novas VPN ou migração de acessos existentes para a infraestrutura da Seplag." },
+                        { id: "2-6", name: "Link's", desc: "Avaliação se o link for físico/local, será solicitado o seu remanejamento para o prédio da SEPLAG.." },
+                    ]
+                },
+                {
+                    id: 3, title: "Fase 3 – Serviços Corporativos", steps: [
+                        { id: "3-1", name: "Email Institucional", desc: "Possibilidade 1: Renomear os e-mails do domínio Casa Civil para o domínio Planejamento (serviço a ser solicitado ao PRODERJ), criando um alias por período a ser combinado para redirecionamento dos e-mails do domínio Casa Civil para o domínio Planejamento. Possibilidade 2: Criar manualmente os e-mails individualmente no domínio Planejamento. OBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve solicitação ao PRODERJ." },
+                        { id: "3-2", name: "Fileserver", desc: "Possibilidade 1: Migração dos documentos do Fileserver da Casa Civil diretamente ao Fileserver do Planejamento (verificar viabilidade junto à Casa Civil e ao PRODERJ). Possibilidade 2: Recebimento de cópia dos documentos da Casa Civil (HD externo) e inserção no Fileserver do Planejamento. OBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve verificação junto à Casa Civil e ao PRODERJ." },
+                        { id: "3-3", name: "Impressoras", desc: "Possibilidade 1: Trazer de volta a impressora que está emprestada à Casa Civil disponibilizando à SUBGEP.Possibilidade 2: Remanejar uma das impressoras localizadas no 8º andar para a SUBGEP. OBS: A Possibilidade 2 é a opção mais interessante, no local existem 2 impressoras, basta compartilharmos a impressora que ficar com a área que terá sua impressora retirada." },
+                        { id: "3-4", name: "SEI-RJ", desc: "Possibilidade 1: Migração dos usuários do SEI da Casa Civil para o SEI do Planejamento com a migração dos processos (verificar viabilidade junto a SETD).Possibilidade 2: Após a criação dos logins de rede, enviar ao RH para o cadastramento no SEI do Planejamento e futura migração dos processos.OBS: A Possibilidade 1 é a opção mais interessante por ser de execução mais rápida, porém envolve verificação de viabilidade junto à SETD." },
+                        { id: "3-5", name: "Aplicações", desc: "Caso existam aplicações hospedadas em servidores locais, será feito um estudo para que passe para o PRODERJ nas VPS. Se as aplicações estiverem hospedadas no PRODERJ, será solicitada a implementação das regras necessárias para permitir o acesso a partir da infraestrutura da SEPLAG." },
+                     ]
+                },
+                {
+                    id: 4, title: "Fase 4 – Governança e Gestão de TI", steps: [
+                        { id: "4-1", name: "Gestão de Ativos de TI", desc: "Diretrizes de Execução: Em alinhamento com a gestão da SUBGEP, será realizado o levantamento do parque tecnológico (endpoints). Os dados coletados alimentarão o banco de dados do nosso sistema de ITSM (GLPI), garantindo o controle de inventário." },
+                        { id: "4-2", name: "Avaliação dos contratos dos links:", desc: "o	Transferência de titularidade da Casa Civil para SEPLAG. Descentralização de Credito. o	Descentralização de Credito.	Caso se trate de um circuito lógico, será solicitado ao PRODERJ o remanejamento das regras e configurações para o ambiente da SEPLAG. " },
+                        ]
+                },
+                {
+                    id: 5, title: "Fase 5 – Serviços de Identidade e Diretório", steps: [
+                        { id: "5-1", name: "Sincronização de Identidades", desc: "Diretrizes de Execução: Subsequente à criação das contas de usuário no Active Directory (AD) pela equipe de Redes e Conectividade, será executada a rotina de sincronização/importação LDAP. O objetivo é unificar a base de autenticação em todas as instâncias ativas do GLPI da Seplag." },
+                        { id: "5-2", name: "Modelagem de Estrutura Organizacional", desc: "Diretrizes de Execução: Mapeamento e cadastro da hierarquia de entidades (departamentos e coordenadorias) da SUBGEP dentro das instâncias do GLPI da Seplag, assegurando o roteamento correto de chamados." },
+                        { id: "5-3", name: "Unidade Organizacional no Active Directory", desc: "Criação de uma Unidade Organizacional no Active Directory dedicado a SUBGEP." },
+                        { id: "5-4", name: "Logins de Rede", desc: "Criação e configuração dos logins de rede no Active Directory, cadastrando nos logins os respectivos e-mails e data de criação. Tarefa efetuada manualmente e individualmente." },
+                    ]
+                },
+                {
+                    id: 6, title: "Fase 6 – Planejamento e Aquisições", steps: [
+                        { id: "6-1", name: "Dimensionamento de Rede para Estações de Trabalho", desc: "Para cada Estação, será necessário: 1 ponto RJ45 Cat6A, 3 Pontos elétricos estabilizados e 1 ponto de Telefonia" },
+                        { id: "6-2", name: "Cabeamento Horizontal", desc: "Necessário a compra de 500 unidades de RJ45 macho, Cabo UTP Cat6 ou Cat6A, quantidade estimada 8 a 10 caixas de 305 metros." },
+                        { id: "6-3", name: "Tomadas de Rede", desc: "Necessário a compra de 250 unidades de Keystone Jack Cat6A, Espelhos, Espelhos duplos (2pontos por posição) e caixa de Embutir ou Sobrepor." },
+                        { id: "6-4", name: "Rack", desc: "Necessário a compra de um Rack de Piso fechado 44U" },
+                                            ]
+                },
+            
+            ],
+            results: [
+                "Maior segurança da rede corporativa",
+                "Padronização da infraestrutura de TI",
+                "Melhor desempenho da rede e sistemas",
+                "Maior estabilidade dos serviços",
+                "Controle centralizado de acessos e ativos",
+                "Expansão facilitada da infraestrutura",
+                "Melhor conectividade e comunicação interna"
+            ]
+        };
+
+        const App = () => {
+            const [completedSteps, setCompletedSteps] = useState(new Set());
+            const [openPhases, setOpenPhases] = useState(new Set([1]));
+            const [loading, setLoading] = useState(true);
+            const [saveStatus, setSaveStatus] = useState({ state: 'loading', message: 'Carregando dados...' });
+
+            // Carregamento inicial de dados (Supabase ou LocalStorage)
+            useEffect(() => {
+                const loadData = async () => {
+                    const fallbackToLocal = () => {
+                        const savedSteps = localStorage.getItem('glpi_completed_steps');
+                        const savedPhases = localStorage.getItem('glpi_open_phases');
+                        if (savedSteps) setCompletedSteps(new Set(JSON.parse(savedSteps)));
+                        if (savedPhases) setOpenPhases(new Set(JSON.parse(savedPhases)));
+                    };
+
+                    if (!isSupabaseConfigured) {
+                        fallbackToLocal();
+                        setLoading(false);
+                        setSaveStatus({ state: 'local', message: 'Salvamento Local Ativo' });
+                        return;
+                    }
+
+                    try {
+                        const { data, error } = await supabase
+                            .from('planejamento_state')
+                            .select('*')
+                            .eq('id', 1) 
+                            .single();
+
+                        if (error && error.code !== 'PGRST116') { 
+                            if (error.code === 'PGRST204') {
+                                console.warn("Tabela encontrada, mas faltam colunas. Fazendo fallback local.");
+                                fallbackToLocal();
+                                setSaveStatus({ state: 'error_columns', message: 'Faltam colunas (Salvo Local)' });
+                            } else {
+                                console.error("Erro ao carregar do Supabase:", error);
+                                fallbackToLocal();
+                                setSaveStatus({ state: 'error', message: `Erro: ${error.message || 'Falha ao carregar nuvem'}` });
+                            }
+                        } else if (data) {
+                            if (data.completed_steps) setCompletedSteps(new Set(data.completed_steps));
+                            if (data.open_phases) setOpenPhases(new Set(data.open_phases));
+                            setSaveStatus({ state: 'synced', message: 'Sincronizado com a Nuvem' });
+                        } else {
+                            fallbackToLocal();
+                            setSaveStatus({ state: 'synced', message: 'Pronto para salvar na Nuvem' });
+                        }
+                    } catch (error) {
+                        console.error("Erro de conexão:", error);
+                        fallbackToLocal();
+                        setSaveStatus({ state: 'error', message: 'Erro de conexão' });
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+
+                loadData();
+            }, []);
+
+            // Salvar dados toda vez que o estado mudar
+            useEffect(() => {
+                if (loading) return; // Não salva enquanto estiver carregando os dados iniciais
+
+                const saveData = async () => {
+                    const stepsArray = Array.from(completedSteps);
+                    const phasesArray = Array.from(openPhases);
+
+                    const saveLocal = () => {
+                        localStorage.setItem('glpi_completed_steps', JSON.stringify(stepsArray));
+                        localStorage.setItem('glpi_open_phases', JSON.stringify(phasesArray));
+                    };
+
+                    if (!isSupabaseConfigured) {
+                        saveLocal();
+                        setSaveStatus({ state: 'local', message: 'Salvo localmente' });
+                        return;
+                    }
+
+                    setSaveStatus({ state: 'saving', message: 'Salvando na nuvem...' });
+                    try {
+                        const { error } = await supabase
+                            .from('planejamento_state')
+                            .upsert({ 
+                                id: 1, 
+                                completed_steps: stepsArray,
+                                open_phases: phasesArray,
+                                updated_at: new Date().toISOString()
+                            });
+
+                        if (error) {
+                            if (error.code === 'PGRST204') {
+                                console.warn("Erro PGRST204: Faltam colunas na tabela do Supabase. Salvando localmente.");
+                                saveLocal();
+                                setSaveStatus({ state: 'error_columns', message: 'Faltam colunas (Salvo Local)' });
+                                return; 
+                            }
+                            throw error; 
+                        }
+                        setSaveStatus({ state: 'synced', message: 'Salvo na Nuvem' });
+                    } catch (error) {
+                        console.error("Erro ao salvar no Supabase:", error);
+                        saveLocal(); 
+                        
+                        // Formatar erro para caber na tag
+                        let errMsg = error.message || 'Erro desconhecido';
+                        if (errMsg.length > 30) errMsg = errMsg.substring(0, 30) + '...';
+                        
+                        setSaveStatus({ state: 'error', message: `Erro: ${errMsg}` });
+                    }
+                };
+
+                const timeoutId = setTimeout(() => {
+                    saveData();
+                }, 500);
+
+                return () => clearTimeout(timeoutId);
+            }, [completedSteps, openPhases, loading]);
+
+            const totalSteps = data.phases.reduce((acc, phase) => acc + phase.steps.length, 0);
+            const progressPercentage = Math.round((completedSteps.size / totalSteps) * 100);
+
+            const toggleStep = (stepId) => {
+                const newCompleted = new Set(completedSteps);
+                if (newCompleted.has(stepId)) {
+                    newCompleted.delete(stepId);
+                } else {
+                    newCompleted.add(stepId);
+                }
+                setCompletedSteps(newCompleted);
+            };
+
+            const togglePhase = (phaseId) => {
+                const newOpen = new Set(openPhases);
+                if (newOpen.has(phaseId)) {
+                    newOpen.delete(phaseId);
+                } else {
+                    newOpen.add(phaseId);
+                }
+                setOpenPhases(newOpen);
+            };
+
+            // Status Badge Colors
+            const getStatusColor = () => {
+                switch(saveStatus.state) {
+                    case 'synced': return 'bg-tech-success text-white border-tech-success';
+                    case 'saving': return 'bg-tech-primary text-white border-tech-primary animate-pulse';
+                    case 'error_columns': 
+                    case 'error': return 'bg-red-500 text-white border-red-500';
+                    case 'local': return 'bg-tech-card text-slate-300 border-tech-border';
+                    default: return 'bg-tech-card text-slate-300 border-tech-border';
+                }
+            };
+
+            // Script SQL para resolução rápida COM DESATIVAÇÃO DE RLS
+            const sqlFixScript = `-- 1. Criar a tabela se não existir
+CREATE TABLE IF NOT EXISTS planejamento_state (
+  id bigint PRIMARY KEY,
+  completed_steps jsonb,
+  open_phases jsonb,
+  updated_at timestamptz
+);
+
+-- 2. Garantir que as colunas existem
+ALTER TABLE planejamento_state
+  ADD COLUMN IF NOT EXISTS completed_steps jsonb,
+  ADD COLUMN IF NOT EXISTS open_phases jsonb,
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz;
+
+-- 3. DESATIVAR RLS (Crucial para permitir gravações anónimas)
+ALTER TABLE planejamento_state DISABLE ROW LEVEL SECURITY;
+
+-- 4. Recarregar a cache do Supabase imediatamente
+NOTIFY pgrst, 'reload schema';`;
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-tech-primary"></div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen p-4 md:p-8 max-w-6xl mx-auto flex flex-col gap-8">
+                    
+                    {/* Header */}
+                    <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-tech-border pb-6">
+                        <div>
+                            <div className="flex items-center gap-3 mb-2">
+                                <ServerIcon />
+                                <span className="text-tech-primary font-semibold tracking-wider text-sm uppercase">Planejamento</span>
+                            </div>
+                            <h1 className="text-3xl md:text-4xl font-bold text-tech-textHighlight tracking-tight">
+                                Planejamento de Infraestrutura e Implantação da SUBGEP
+                            </h1>
+                            <div className={`mt-4 inline-flex items-center gap-2 px-3 py-1.5 border rounded-full text-xs font-medium shadow-sm transition-colors ${getStatusColor()}`}>
+                                {isSupabaseConfigured && saveStatus.state !== 'local' ? <CloudIcon className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-tech-success"></div>}
+                                <span>{saveStatus.message}</span>
+                            </div>
+                        </div>
+                        <div className="bg-tech-card p-4 rounded-xl border border-tech-border flex flex-col gap-3 min-w-[250px]">
+                            <div className="flex items-center gap-3 text-sm">
+                                <CalendarIcon />
+                                <span><strong className="text-tech-textHighlight">Início:</strong> a combinar</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-sm">
+                                <ClockIcon />
+                                <span><strong className="text-tech-textHighlight">Prazo Estimado:</strong> a combinar</span>
+                            </div>
+                            <div className="flex items-center gap-3 text-sm text-tech-primary">
+                                <UserIcon />
+                                <span>Bruno Teixeira Sampaio</span>
+                                <UserIcon />
+                                <span>André Pessino</span>
+                                <UserIcon />
+                                <span>Eron Cerqueira</span>
+                                <UserIcon />
+                                <span>Gabriel Bandeira</span>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Banner Colaboração */}
+                    <section className="bg-tech-card border-l-4 border-tech-primary p-6 rounded-r-xl shadow-lg relative overflow-hidden">
+                        <div className="absolute -right-10 -top-10 w-32 h-32 bg-tech-primary opacity-10 rounded-full blur-2xl"></div>
+                        <h3 className="text-xl font-semibold text-tech-textHighlight mb-3 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-tech-primary"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            Requisito de Colaboração
+                        </h3>
+                        <p className="text-tech-text leading-relaxed mb-4">
+                            Para a execução das atividades previstas neste planejamento, será necessária a colaboração das áreas envolvidas durante todas as etapas de implantação, garantindo alinhamento operacional e apoio às equipes técnicas. Também será fundamental a disponibilização de informações relacionadas a usuários, ativos e acessos, além da liberação de acesso físico aos ambientes de infraestrutura e telecomunicações. As equipes responsáveis deverão participar dos processos de validação, testes e homologações, assegurando a conformidade das entregas realizadas. A comunicação entre os setores envolvidos será essencial para o alinhamento das mudanças e cumprimento das janelas de manutenção estabelecidas para execução das atividades.
+                        </p>
+                    </section>
+
+                    {/* Barra de Progresso */}
+                    <section className="bg-tech-card p-6 rounded-xl border border-tech-border sticky top-4 z-10 shadow-xl">
+                        <div className="flex justify-between items-end mb-2">
+                            <div>
+                                <h2 className="text-lg font-semibold text-tech-textHighlight">Progresso da Implantação</h2>
+                                <p className="text-sm text-slate-400">{completedSteps.size} de {totalSteps} tarefas concluídas</p>
+                            </div>
+                            <div className="text-2xl font-bold text-tech-primary">{progressPercentage}%</div>
+                        </div>
+                        <div className="w-full bg-tech-bg rounded-full h-3 overflow-hidden border border-tech-border">
+                            <div 
+                                className="bg-gradient-to-r from-tech-primary to-tech-success h-3 rounded-full transition-all duration-500 ease-out" 
+                                style={{ width: `${progressPercentage}%` }}
+                            ></div>
+                        </div>
+                    </section>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        
+                        {/* Timeline / Fases */}
+                        <div className="lg:col-span-2 flex flex-col gap-4">
+                            <h2 className="text-2xl font-semibold text-tech-textHighlight mb-2">Cronograma de Execução</h2>
+                            
+                            {data.phases.map((phase) => {
+                                const isPhaseOpen = openPhases.has(phase.id);
+                                const phaseCompletedSteps = phase.steps.filter(s => completedSteps.has(s.id)).length;
+                                const isPhaseComplete = phaseCompletedSteps === phase.steps.length;
+
+                                return (
+                                    <div key={phase.id} className={`bg-tech-card rounded-xl border transition-all duration-300 ${isPhaseOpen ? 'border-tech-primary/50 shadow-lg shadow-tech-primary/5' : 'border-tech-border hover:border-slate-500'}`}>
+                                        
+                                        <button 
+                                            onClick={() => togglePhase(phase.id)}
+                                            className="w-full p-5 flex items-center justify-between focus:outline-none group"
+                                        >
+                                            <div className="flex items-center gap-4 text-left">
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg transition-colors ${isPhaseComplete ? 'bg-tech-success text-white' : 'bg-tech-bg border border-tech-border text-tech-text group-hover:border-tech-primary'}`}>
+                                                    {isPhaseComplete ? '✓' : phase.id}
+                                                </div>
+                                                <div>
+                                                    <h3 className={`font-semibold text-lg transition-colors ${isPhaseComplete ? 'text-tech-success' : 'text-tech-textHighlight'}`}>
+                                                        {phase.title}
+                                                    </h3>
+                                                    <p className="text-xs text-slate-400 mt-1">
+                                                        {phaseCompletedSteps} / {phase.steps.length} etapas concluídas
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <ChevronDownIcon className={`text-slate-400 transition-transform duration-300 ${isPhaseOpen ? 'rotate-180 text-tech-primary' : ''}`} />
+                                        </button>
+
+                                        <div className={`overflow-hidden transition-all duration-300 ${isPhaseOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                            <div className="p-5 pt-0 border-t border-tech-border/50 bg-tech-card/50">
+                                                <ul className="mt-4 flex flex-col gap-3">
+                                                    {phase.steps.map(step => (
+                                                        <li key={step.id} 
+                                                            className="flex items-start gap-4 p-3 rounded-lg hover:bg-tech-bg/50 transition-colors cursor-pointer"
+                                                            onClick={() => toggleStep(step.id)}
+                                                        >
+                                                            <div className="mt-1">
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    className="tech-checkbox" 
+                                                                    checked={completedSteps.has(step.id)}
+                                                                    readOnly
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <p className={`font-medium transition-colors ${completedSteps.has(step.id) ? 'text-slate-400 line-through' : 'text-slate-200'}`}>
+                                                                    {step.name}
+                                                                </p>
+                                                                {step.desc && (
+                                                                    <p className="text-sm text-slate-500 mt-0.5">{step.desc}</p>
+                                                                )}
+                                                            </div>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Lateral */}
+                        <div className="flex flex-col gap-6">
+                            
+                            <div className="bg-tech-card p-6 rounded-xl border border-tech-border">
+                                <h3 className="text-lg font-semibold text-tech-textHighlight mb-4 flex items-center gap-2">
+                                    <CheckCircleIcon />
+                                    Resultado Esperado
+                                </h3>
+                                <ul className="flex flex-col gap-3">
+                                    {data.results.map((res, index) => (
+                                        <li key={index} className="flex items-center gap-3 text-sm text-slate-300 bg-tech-bg/50 p-3 rounded-lg border border-tech-border/50">
+                                            <span className="text-tech-success">✔</span>
+                                            {res}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            <div className={`gradient-border ${saveStatus.state === 'error_columns' || saveStatus.state === 'error' ? 'animate-pulse' : ''}`}>
+                                <div className="p-6">
+                                    <div className="flex items-center gap-3 mb-3 text-tech-primary">
+                                        <TargetIcon />
+                                        <h3 className="font-bold text-lg text-white tracking-wide">Integração Nuvem</h3>
+                                    </div>
+                                    
+                                    <div className="text-sm text-slate-300 space-y-3">
+                                        {saveStatus.state === 'error_columns' || saveStatus.state === 'error' ? (
+                                            <div className="space-y-3 bg-red-900/20 p-4 rounded-lg border border-red-500/30">
+                                                <p className="text-red-400 font-semibold text-sm">Ação Necessária no Supabase</p>
+                                                <p className="text-xs">
+                                                    Execute o código abaixo no <strong>SQL Editor</strong> do Supabase. Isto irá desativar o bloqueio de segurança (RLS) e recarregar a tabela:
+                                                </p>
+                                                <textarea 
+                                                    readOnly 
+                                                    className="w-full bg-black text-tech-primary p-3 rounded h-40 font-mono text-[10px] resize-none focus:outline-none focus:border-tech-primary shadow-inner" 
+                                                    value={sqlFixScript} 
+                                                    onClick={(e) => e.target.select()}
+                                                />
+                                                <p className="text-[10px] text-slate-400">Após executar o código, atualize esta página (F5).</p>
+                                            </div>
+                                        ) : isSupabaseConfigured ? (
+                                            <p>O salvamento na nuvem via <strong className="text-white">Supabase</strong> está ativo. Verifique a etiqueta de status no topo.</p>
+                                        ) : (
+                                            <>
+                                                <p>O salvamento local está ativo. Para habilitar a nuvem:</p>
+                                                <ol className="list-decimal pl-4 space-y-1 text-xs text-slate-400">
+                                                    <li>Crie um projeto no Supabase</li>
+                                                    <li>Crie uma tabela <code className="text-tech-primary">planejamento_state</code></li>
+                                                    <li>Insira a URL e a Anon Key no topo do código</li>
+                                                </ol>
+                                            </>
+                                        )}
+                                        
+                                        <div className="bg-tech-bg p-3 rounded border border-tech-border/50 text-tech-primary font-medium text-xs">
+                                            Meta: a combinar.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
